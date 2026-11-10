@@ -6,6 +6,9 @@
 --  * Two-handed firearms (TwoHanded or bigNoDrop) are never dropped by implicit drops
 --    (e.g. when another weapon is dropped).
 --  * Explicit drop commands (radial menu / bind) still drop them.
+--  * The drop-command bypass is weapon-specific: only the exact weapon the command
+--    would drop (the active weapon when the command was issued) is allowed through
+--    for DROP_FLAG_TIME seconds, so protected weapons stay put even mid-window.
 
 util.AddNetworkString("ZCity_Holster_Sync")
 
@@ -46,13 +49,25 @@ local function IsHolstered(ply, wep)
     return IsValid(wep) and IsBackMelee(wep) and wep ~= ply:GetActiveWeapon()
 end
 
+-- True only for the ONE weapon the player intentionally asked to drop
+-- (the active weapon at the moment the drop command was issued) or for
+-- internally forced drops. Other weapons stay protected even inside the
+-- drop-command window, so an implicit drop (PlayerThink, sling drop, etc.)
+-- can't take the main/back weapon along with the dropped one.
+local function IsExplicitDrop(ply, wep)
+    if ply.ZCityHolsterForceDrop then return true end
+    if not ply.IsSpammingDropCommand then return false end
+    return IsValid(ply.ZCityHolsterDropTarget) and wep == ply.ZCityHolsterDropTarget
+end
+
 -- Block ordinary drops, but keep ZCity's intentional drop-command bypass
 -- (ply.IsSpammingDropCommand). Captured originals keep this safe if another addon wraps these methods.
 -- Единая проверка: нужно ли блокировать дроп этого оружия.
--- Намеренные команды дропа (ply.IsSpammingDropCommand) и принудительный дроп пропускаем.
+-- Пропускаем только то оружие, для которого дроп был запрошен явно
+-- (ply.ZCityHolsterDropTarget), либо принудительный дроп.
 local function ShouldBlockDrop(ply, wep)
     if not IsValid(ply) or not ply:IsPlayer() or not ply:Alive() then return false end
-    if ply.IsSpammingDropCommand or ply.ZCityHolsterForceDrop then return false end
+    if IsExplicitDrop(ply, wep) then return false end
     if IsTwoHandedFirearm(wep) then return true end
     return IsHolstered(ply, wep)
 end
@@ -105,9 +120,18 @@ local DROP_FLAG_TIME = 0.25
 
 local function MarkDropCommand(ply)
     if not IsValid(ply) then return end
+    -- hg.drop drops the ACTIVE weapon when no explicit weapon is passed to the command,
+    -- so remember it now and only allow this exact weapon through during the window.
+    -- Anything else (e.g. the two-handed firearm on the back, force-dropped by
+    -- homigrad-dropholstered or other implicit code) stays protected.
+    local target = ply:GetActiveWeapon()
     ply.IsSpammingDropCommand = true
+    ply.ZCityHolsterDropTarget = IsValid(target) and target or nil
     timer.Create("ZCity_HolsterDropFlag_" .. ply:EntIndex(), DROP_FLAG_TIME, 1, function()
-        if IsValid(ply) then ply.IsSpammingDropCommand = nil end
+        if IsValid(ply) then
+            ply.IsSpammingDropCommand = nil
+            ply.ZCityHolsterDropTarget = nil
+        end
     end)
 end
 
@@ -131,14 +155,14 @@ end
 hook.Add("InitPostEntity", "ZCity_HolsterDropCommands", WrapDropCommands)
 
 hook.Add("PlayerCanDropWeapon", "ZCity_KeepTwoHandedFirearm", function(ply, wep)
-    if IsTwoHandedFirearm(wep) and not ply.IsSpammingDropCommand then
+    if IsTwoHandedFirearm(wep) and not IsExplicitDrop(ply, wep) then
         return false
     end
 end)
 
 hook.Add("PlayerCanDropWeapon", "ZCity_PreventMeleeDrop", function(ply, wep)
     if IsHolstered(ply, wep) then
-        return (ply.IsSpammingDropCommand or ply.ZCityHolsterForceDrop) and true or false
+        return IsExplicitDrop(ply, wep) and true or false
     end
 end)
 
@@ -155,7 +179,15 @@ hook.Add("WeaponEquip", "ZCity_ReplaceBackMelee", function(wep, ply)
     if not IsValid(wep) or not IsValid(ply) or not ply:IsPlayer() then return end
     if not IsBackMelee(wep) then return end
 
-    for _, other in ipairs(ply:GetWeapons()) do
+    -- Work on a snapshot: dropping removes weapons from ply:GetWeapons(),
+    -- and mutating the table during ipairs would skip the next weapon.
+    local weapons = ply:GetWeapons()
+    local snapshot = {}
+    for i = 1, #weapons do
+        snapshot[i] = weapons[i]
+    end
+
+    for _, other in ipairs(snapshot) do
         if other ~= wep and IsValid(other) and IsBackMelee(other) then
             -- If the old weapon was in hand, the new one takes over the hand first.
             if ply:GetActiveWeapon() == other then
