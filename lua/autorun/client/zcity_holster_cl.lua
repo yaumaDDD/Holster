@@ -1,21 +1,51 @@
--- Put this file in lua/autorun/client/zcity_holster_cl.lua
+-- Z-City Back Holster (client). Put this addon into garrysmod/addons/.
+--
+-- Позиции отображения оружия за спиной редактируются в lua/holster/positions.lua —
+-- любое back-оружие можно добавить туда по имени класса.
+-- Если файл не загрузится или в нём ошибка, используются встроенные значения.
 
-local HolsterConfig = {
-    weapon_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 5, 4), ang = Angle(0, 90, 160) },
-    weapon_hg_sledgehammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 6, 2), ang = Angle(0, 90, 160) },
-    weapon_hg_shovel = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 5, 0), ang = Angle(0, 90, 160) },
-    weapon_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 5, -2), ang = Angle(0, 100, 150) },
-    weapon_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 5, -2), ang = Angle(0, 100, 150) },
-    weapon_tomahawk = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 6), ang = Angle(0, 90, 180) },
-    weapon_hatchet = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 6), ang = Angle(0, 90, 180) },
-    weapon_hg_extinguisher = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 7, 0), ang = Angle(0, 90, 0) },
-    weapon_hg_crowbar = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, -4), ang = Angle(0, 85, 170) },
-    weapon_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 0, -2), ang = Angle(0, 90, 170) },
-    weapon_hg_machete = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, -4), ang = Angle(0, 90, 190) }
+-- Встроенный запасной вариант (зеркало lua/holster/positions.lua).
+local BuiltinPositions = {
+    weapons = {
+        weapon_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 5, 4), ang = Angle(0, 90, 160) },
+        weapon_hg_sledgehammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 6, 2), ang = Angle(0, 90, 160) },
+        weapon_hg_shovel = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 5, 0), ang = Angle(0, 90, 160) },
+        weapon_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 5, -2), ang = Angle(0, 100, 150) },
+        weapon_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 5, -2), ang = Angle(0, 100, 150) },
+        weapon_tomahawk = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 6), ang = Angle(0, 90, 180) },
+        weapon_hatchet = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 6), ang = Angle(0, 90, 180) },
+        weapon_hg_extinguisher = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 7, 0), ang = Angle(0, 90, 0) },
+        weapon_hg_crowbar = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, -4), ang = Angle(0, 85, 170) },
+        weapon_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 0, -2), ang = Angle(0, 90, 170) },
+        weapon_hg_machete = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, -4), ang = Angle(0, 90, 190) }
+    },
+    default = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
 }
 
--- Used for any back-holstered melee weapon that has no explicit entry above.
-local DefaultHolsterConfig = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
+local function LoadPositions()
+    local ok, result = pcall(include, "holster/positions.lua")
+    local positions = nil
+    if ok and istable(result) and istable(result.weapons) then
+        positions = result
+    elseif istable(ZCityHolsterPositions) and istable(ZCityHolsterPositions.weapons) then
+        positions = ZCityHolsterPositions
+    end
+
+    if not positions then
+        if not ok then
+            print("[ZCity Holster] Не удалось загрузить lua/holster/positions.lua: " .. tostring(result))
+        else
+            print("[ZCity Holster] lua/holster/positions.lua не содержит таблицу weapons, используются встроенные позиции.")
+        end
+        positions = BuiltinPositions
+    elseif not istable(positions.default) then
+        positions.default = BuiltinPositions.default
+    end
+
+    return positions.weapons, positions.default
+end
+
+local HolsterConfig, DefaultHolsterConfig = LoadPositions()
 
 local function ClearHolsters(ply)
     if not istable(ply.HolsterModels) then
