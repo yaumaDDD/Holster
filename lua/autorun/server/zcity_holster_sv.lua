@@ -159,6 +159,35 @@ end
 
 hook.Add("InitPostEntity", "ZCity_HolsterDropCommands", WrapDropCommands)
 
+-- Заменяет стоковый хук ZCity "homigrad-dropholstered" (sv_util.lua), который
+-- насильно выбрасывает любое подобранное NoHolster-оружие не в руках, на версию,
+-- которая не трогает оружие за спиной (hg.IsBackMelee).
+-- Это полный эквивалент ручной правки sv_util.lua, который раньше шёл вместе с
+-- аддоном, только без изменения файлов самой игры: правка применяется прямо из аддона.
+-- hook.Add с тем же именем заменяет стоковый хук; повторная установка в InitPostEntity
+-- гарантирует, что мы окажемся последними, как бы ни отработал порядок загрузки.
+local function ReplaceDropHolsteredHook()
+    hook.Add("Player Think", "homigrad-dropholstered", function(ply)
+        if (ply.thinkdropwep or 0) > CurTime() then return end
+        ply.thinkdropwep = CurTime() + 0.1
+        if ply.organism and ply.organism.allowholster then return end
+
+        local activewep = ply:GetActiveWeapon()
+        local weps = ply:GetWeapons()
+        for i = 1, #weps do
+            local wep = weps[i]
+
+            -- Стоковое поведение, но back-оружие (hg.IsBackMelee) остаётся на спине.
+            if wep.NoHolster and activewep ~= wep and wep.picked and not (hg.IsBackMelee and hg.IsBackMelee(wep)) then
+                ply:DropWeapon(wep)
+            end
+        end
+    end)
+end
+
+ReplaceDropHolsteredHook()
+hook.Add("InitPostEntity", "ZCity_HolsterDropHolsteredFix", ReplaceDropHolsteredHook)
+
 hook.Add("PlayerCanDropWeapon", "ZCity_KeepTwoHandedFirearm", function(ply, wep)
     if IsTwoHandedFirearm(wep) and not IsExplicitDrop(ply, wep) then
         return false
