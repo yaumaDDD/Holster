@@ -1,5 +1,10 @@
--- Put this file in lua/autorun/server/zcity_holster_sv.lua
---
+-- Z-City Back Holster (server). Put this addon into garrysmod/addons/.
+
+-- Отдать клиенту клиентскую часть и файл позиций (нужно на выделенном сервере
+-- без мастерской; без этого клиенты не получат lua/autorun/client и positions.lua).
+AddCSLuaFile("autorun/client/zcity_holster_cl.lua")
+AddCSLuaFile("holster/positions.lua")
+
 -- Back holster for melee weapons.
 --  * Any melee weapon (NoHolster == true, or listed below) can be holstered on the back.
 --  * Only ONE holstered melee weapon is carried. Picking up another one drops the previous one.
