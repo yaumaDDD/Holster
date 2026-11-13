@@ -6,7 +6,8 @@ AddCSLuaFile("autorun/client/zcity_holster_cl.lua")
 AddCSLuaFile("holster/positions.lua")
 
 -- Back holster for melee weapons.
---  * Any melee weapon (NoHolster == true, or listed below) can be holstered on the back.
+--  * Back-оружие — это ровно белый список из lua/holster/positions.lua (секция weapons).
+--    Всё, чего там нет (бутылки, палки, огнетушитель и т.п.), за спину не попадает.
 --  * Only ONE holstered melee weapon is carried. Picking up another one drops the previous one.
 --  * Two-handed firearms (TwoHanded or bigNoDrop) are never dropped by implicit drops
 --    (e.g. when another weapon is dropped).
@@ -19,8 +20,8 @@ util.AddNetworkString("ZCity_Holster_Sync")
 
 hg = hg or {}
 
--- Extra melee weapons that are always holstered even if NoHolster is not set.
-local ExtraBackMelee = {
+-- Зеркало списка из lua/holster/positions.lua — используется, если файл не загрузился.
+local BuiltinBackMelee = {
     weapon_hg_axe = true,
     weapon_hg_sledgehammer = true,
     weapon_hg_shovel = true,
@@ -28,18 +29,46 @@ local ExtraBackMelee = {
     weapon_hg_spear = true,
     weapon_tomahawk = true,
     weapon_hatchet = true,
-    weapon_hg_extinguisher = true,
     weapon_hg_crowbar = true,
     weapon_bat = true,
     weapon_hg_machete = true
 }
 
--- Returns true for any melee weapon that is allowed on the back.
+-- Белый список back-оружия: это ключи секции weapons из lua/holster/positions.lua.
+-- Файл общий для клиента (позиции) и сервера (список), поэтому правка одна.
+local function LoadBackMelee()
+    local ok, result = pcall(include, "holster/positions.lua")
+    local positions = nil
+    if ok and istable(result) and istable(result.weapons) then
+        positions = result
+    elseif istable(ZCityHolsterPositions) and istable(ZCityHolsterPositions.weapons) then
+        positions = ZCityHolsterPositions
+    end
+
+    if positions then
+        local list = {}
+        for class in pairs(positions.weapons) do
+            list[class] = true
+        end
+        if next(list) then
+            return list
+        end
+    end
+
+    if not ok then
+        print("[ZCity Holster] Не удалось загрузить lua/holster/positions.lua: " .. tostring(result) .. " — используется встроенный список.")
+    else
+        print("[ZCity Holster] lua/holster/positions.lua не содержит секцию weapons — используется встроенный список.")
+    end
+    return BuiltinBackMelee
+end
+
+local ExtraBackMelee = LoadBackMelee()
+
+-- Returns true for any weapon allowed on the back (white list only).
 local function IsBackMelee(wep)
     if not IsValid(wep) then return false end
-    if ExtraBackMelee[wep:GetClass()] then return true end
-    -- Firearms (bigNoDrop) never go on the back.
-    return wep.NoHolster == true and wep.bigNoDrop ~= true
+    return ExtraBackMelee[wep:GetClass()] == true
 end
 hg.IsBackMelee = IsBackMelee
 
@@ -174,8 +203,13 @@ local function ReplaceDropHolsteredHook()
 
         local activewep = ply:GetActiveWeapon()
         local weps = ply:GetWeapons()
+        -- Итерация по снапшоту: дроп может менять список оружия игрока.
+        local snapshot = {}
         for i = 1, #weps do
-            local wep = weps[i]
+            snapshot[i] = weps[i]
+        end
+        for i = 1, #snapshot do
+            local wep = snapshot[i]
 
             -- Стоковое поведение, но back-оружие (hg.IsBackMelee) остаётся на спине.
             if wep.NoHolster and activewep ~= wep and wep.picked and not (hg.IsBackMelee and hg.IsBackMelee(wep)) then

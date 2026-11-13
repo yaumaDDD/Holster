@@ -1,23 +1,22 @@
 -- Z-City Back Holster (client). Put this addon into garrysmod/addons/.
 --
--- Позиции отображения оружия за спиной редактируются в lua/holster/positions.lua —
--- любое back-оружие можно добавить туда по имени класса.
+-- Оружие, которое носится за спиной, и его позиции редактируются в
+-- lua/holster/positions.lua (это белый список для сервера и клиента сразу).
 -- Если файл не загрузится или в нём ошибка, используются встроенные значения.
 
 -- Встроенный запасной вариант (зеркало lua/holster/positions.lua).
 local BuiltinPositions = {
     weapons = {
-        weapon_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 5, 4), ang = Angle(0, 90, 160) },
-        weapon_hg_sledgehammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 6, 2), ang = Angle(0, 90, 160) },
-        weapon_hg_shovel = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 5, 0), ang = Angle(0, 90, 160) },
-        weapon_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 5, -2), ang = Angle(0, 100, 150) },
-        weapon_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 5, -2), ang = Angle(0, 100, 150) },
-        weapon_tomahawk = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 6), ang = Angle(0, 90, 180) },
-        weapon_hatchet = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 6), ang = Angle(0, 90, 180) },
-        weapon_hg_extinguisher = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-4, 7, 0), ang = Angle(0, 90, 0) },
-        weapon_hg_crowbar = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, -4), ang = Angle(0, 85, 170) },
-        weapon_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 0, -2), ang = Angle(0, 90, 170) },
-        weapon_hg_machete = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, -4), ang = Angle(0, 90, 190) }
+        weapon_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(90, 120, -5) },
+        weapon_hg_sledgehammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
+        weapon_hg_shovel = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 2.5, 0), ang = Angle(65, 0, 265) },
+        weapon_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(90, -15, -2.5) },
+        weapon_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(0, -20, -2.5) },
+        weapon_tomahawk = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(4, 4, 0), ang = Angle(90, 120, -5) },
+        weapon_hatchet = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(4, 4, 0), ang = Angle(0, 120, -5) },
+        weapon_hg_crowbar = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) },
+        weapon_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
+        weapon_hg_machete = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) }
     },
     default = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
 }
