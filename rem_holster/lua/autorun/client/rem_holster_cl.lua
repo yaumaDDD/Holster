@@ -65,6 +65,7 @@ local function ClearHolsters(ply)
     ply.RemHolsterModels = {}
 end
 
+local RemHolsterAnnounced = {}
 net.Receive("Rem_Holster_Sync", function()
     local ply = net.ReadEntity()
     local weapons = net.ReadTable()
@@ -83,19 +84,36 @@ net.Receive("Rem_Holster_Sync", function()
             local config = HolsterConfig[weaponData.class] or DefaultHolsterConfig
             local model = weaponData.model
 
-            if config and isstring(model) and model ~= "" and util.IsValidModel(model) then
+            if config and isstring(model) and model ~= "" then
+                -- ВАЖНО: модельки реморсеима (WorldModelExchange — например
+                -- models/tfa_nmrih/w_bat.mdl) пак рисует только через
+                -- ClientsideModel и движок их не прекеширует, поэтому
+                -- util.IsValidModel для них возвращает false — раньше здесь
+                -- была тихая просадка («моделька не рисуется»). Прекешируем
+                -- сами и не отбрасываем модель из-за этой проверки.
+                pcall(util.PrecacheModel, model)
+
                 local prop = ClientsideModel(model, RENDERGROUP_OPAQUE)
                 if IsValid(prop) then
-                    prop:SetNoDraw(true)
-                    -- Масштаб как в игре (modelscale у пака).
-                    prop:SetModelScale(tonumber(weaponData.scale) or 1, 0)
-                    ply.RemHolsterModels[1] = {
-                        ent = prop,
-                        bone = config.bone,
-                        pos = config.pos,
-                        ang = config.ang
-                    }
-                    break
+                    if prop:GetModel() == "models/error.mdl" then
+                        print("[Rem Holster] Модель не найдена, на спине не будет: " .. tostring(model))
+                        prop:Remove()
+                    else
+                        prop:SetNoDraw(true)
+                        -- Масштаб как в игре (modelscale у пака).
+                        prop:SetModelScale(tonumber(weaponData.scale) or 1)
+                        if not RemHolsterAnnounced[weaponData.class] then
+                            RemHolsterAnnounced[weaponData.class] = true
+                            print("[Rem Holster] На спине: " .. tostring(weaponData.class) .. " -> " .. tostring(model))
+                        end
+                        ply.RemHolsterModels[1] = {
+                            ent = prop,
+                            bone = config.bone,
+                            pos = config.pos,
+                            ang = config.ang
+                        }
+                        break
+                    end
                 end
             end
         end
