@@ -74,45 +74,28 @@ local HolsterConfig, DefaultHolsterConfig = LoadPositions()
 -- точка хвата». Никаких измерений bbox (он раздут анимациями вьюмодели) и
 -- никаких «центров» — только кость, которую использует сам пак.
 --
--- Если у модели нет такой кости (обычные мировые модели Z-City), смещение
--- остаётся нулевым — они и так корректно ставятся своим origin.
+-- ВАЖНО (проверено логом holster_diag на реальных моделях):
+--   * Z-City-оружие (WorldModel, w_*.mdl) — у моделей всего 1-4 кости, и
+--     никакой кости хвата там нет. Сервер для них bone_index НЕ передаёт, и
+--     привязка должна оставаться по origin (нулевое смещение) — именно так
+--     эти модели и размечены в positions.lua.
+--   * Remorseim-оружие с моделью из рук (v_*.mdl) — 95+ костей, и кость
+--     хвата (basebone, обычно 94) реально есть.
+-- Поэтому: якорь применяем ТОЛЬКО когда сервер передал bone_index и такая
+-- кость в модели существует. Никакого поиска «похожих» костей по имени:
+-- в мировых моделях попадаются кости вида ValveBiped.Bip01_L_Hand, и
+-- цепляние за них уводило оружие с тела (мачете, лом, топорик).
 local function GetModelAnchor(prop, headBone)
     if not IsValid(prop) then return Vector(0, 0, 0) end
 
+    local bone = tonumber(headBone)
+    if not bone then return Vector(0, 0, 0) end
+
     local okBones, count = pcall(prop.GetBoneCount, prop)
     count = okBones and tonumber(count) or 0
-    if count <= 0 then return Vector(0, 0, 0) end
-
-    -- 1) кость хвата из оружия (у Remorseim берём basebone, если он <= count)
-    local candidates = {}
-    if tonumber(headBone) and tonumber(headBone) >= 0 and tonumber(headBone) < count then
-        candidates[#candidates + 1] = tonumber(headBone)
+    if count <= 0 or bone < 0 or bone >= count then
+        return Vector(0, 0, 0)
     end
-    -- 2) иначе ищем по имени стандартную кость руки/оружия
-    for _, name in ipairs({ "ValveBiped.Bip01_R_Hand", "ValveBiped.Bip01_L_Hand", "ValveBiped.Bip01_R_Forearm" }) do
-        local ok, idx = pcall(prop.LookupBone, prop, name)
-        if ok and tonumber(idx) and tonumber(idx) > 0 then
-            candidates[#candidates + 1] = tonumber(idx)
-        end
-    end
-
-    -- 3) иначе ищем кость по имени, похожему на точку хвата (weapon/hand/grip)
-    if #candidates == 0 then
-        for i = 0, count - 1 do
-            local ok, name = pcall(prop.GetBoneName, prop, i)
-            if ok and isstring(name) then
-                local lower = string.lower(name)
-                if string.find(lower, "hand", 1, true)
-                    or string.find(lower, "weapon", 1, true)
-                    or string.find(lower, "grip", 1, true) then
-                    candidates[#candidates + 1] = i
-                    break
-                end
-            end
-        end
-    end
-
-    if #candidates == 0 then return Vector(0, 0, 0) end
 
     -- Меряем смещение кости в локальных координатах модели: временно ставим
     -- модель в ноль, чтобы кость отдала локальную позицию.
@@ -121,20 +104,14 @@ local function GetModelAnchor(prop, headBone)
     prop:SetAngles(angle_zero)
     prop:SetupBones()
 
-    local anchor
-    for _, idx in ipairs(candidates) do
-        local ok, p = pcall(prop.GetBonePosition, prop, idx)
-        if ok and p then
-            anchor = Vector(p.x, p.y, p.z)
-            break
-        end
-    end
+    local ok, p = pcall(prop.GetBonePosition, prop, bone)
+    local anchor = (ok and p) and Vector(p.x, p.y, p.z) or Vector(0, 0, 0)
 
     prop:SetPos(savedPos)
     prop:SetAngles(savedAng)
     prop:SetupBones()
 
-    return anchor or Vector(0, 0, 0)
+    return anchor
 end
 
 -- ============================================================
@@ -182,16 +159,10 @@ local function DiagModel(prop, cls, model, scale, basebone)
     Diag(string.format("    basebone: %s (%s)", tostring(basebone), bbValid and "есть" or "НЕТ такой кости"))
     Diag(string.format("    кость руки: %s (%s)", tostring(handIdx), handName))
 
-    if count <= 0 then
-        Diag("    !! у модели нет костей — привязка по origin")
-        return
-    end
     if bbValid then
         Diag("    -> привязка по basebone (как в руках у пака)")
-    elseif handIdx > 0 then
-        Diag("    -> basebone нет, привязка по кости руки")
     else
-        Diag("    !! ни basebone, ни кости руки — привязка по origin (может встать криво)")
+        Diag("    -> привязка по origin модели (норма для мировых моделей Z-City)")
     end
 end
 
