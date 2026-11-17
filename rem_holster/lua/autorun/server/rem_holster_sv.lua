@@ -1,18 +1,19 @@
--- Remorseim Back Holster (server).
--- Временная установка: файлы кидаются в папки Гмода —
--- lua/autorun/server (этот файл + rem_holster_positions.lua) и
--- lua/autorun/client (rem_holster_cl.lua). Пока не собраны в отдельный аддон.
--- Отдельная система для милишек Remorseim Gun Pack. Работает рядом с zcity_holster:
--- у каждого свой белый список, свои позиции, свой net-канал и свои хуки,
--- поэтому они не конфликтуют. Модели берутся из самих оружий по их путям
--- (WorldModelExchange / WorldModelReal — «своя» модель Remorseim), а не хардкодятся.
+-- Remorseim Back Holster (server). Put this addon into garrysmod/addons/.
+--
+-- Оружие, которое носится за спиной, и его позиции редактируются в
+-- lua/holster/positions.lua (это белый список для сервера и клиента сразу).
+-- Если файл не загрузится или в нём ошибка, используются встроенные значения.
+--
+-- Отдельная система для милишек Remorseim Gun Pack. Работает рядом с
+-- zcity_holster: у каждого свой белый список, свои позиции, свой net-канал и
+-- свои хуки, поэтому они не конфликтуют. Модели берутся из самих оружий по их
+-- путям (WorldModelExchange / WorldModelReal — «своя» модель Remorseim).
 
--- Отдать клиенту клиентскую часть (нужно на выделенном сервере без мастерской).
--- Конфиг позиций клиенту НЕ отдаётся — сервер присылает значения сам.
 AddCSLuaFile("autorun/client/rem_holster_cl.lua")
+AddCSLuaFile("holster/positions.lua")
 
 -- Back holster for Remorseim melee weapons.
---  * Back-оружие — это ровно белый список из rem_holster_positions.lua (секция weapons).
+--  * Back-оружие — это ровно белый список из lua/holster/positions.lua (секция weapons).
 --  * Only ONE Remorseim back weapon is carried. Picking up another one drops the previous one.
 --  * Two-handed firearms (TwoHanded or bigNoDrop) are never dropped by implicit drops.
 --  * Explicit drop commands (radial menu / bind) still drop them.
@@ -75,45 +76,50 @@ timer.Simple(2, function()
     pcall(RemHolsterPrecacheAllModels)
 end)
 
--- Встроенный запасной список back-оружия — используется, если конфиг не найден.
-local BuiltinRemBackMelee = {
-    weapon_rem_melee_hg_spear = true,
-    weapon_rem_melee_hg_sledgehammer = true,
-    weapon_rem_melee_hg_shovel = true,
-    weapon_rem_melee_hg_spear_pro = true,
-    weapon_rem_melee_hg_machete = true,
-    weapon_rem_melee_hatchet = true,
-    weapon_rem_melee_hg_axe = true,
-    weapon_rem_melee_hg_crowbar = true,
-    weapon_rem_melee_chainsaw = true,
-    weapon_rem_melee_bat = true,
-    weapon_rem_melee_metalbat = true
+-- Встроенный запасной вариант (зеркало lua/holster/positions.lua).
+local BuiltinPositions = {
+    weapons = {
+        weapon_rem_melee_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(0, -20, -2.5) },
+        weapon_rem_melee_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(90, -15, -2.5) },
+        weapon_rem_melee_hg_sledgehammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
+        weapon_rem_melee_hg_shovel = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 2.5, 0), ang = Angle(65, 0, 265) },
+        weapon_rem_melee_chainsaw = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
+        weapon_rem_melee_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(90, 120, -5) },
+        weapon_rem_melee_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
+        weapon_rem_melee_metalbat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
+        weapon_rem_melee_hg_machete = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) },
+        weapon_rem_melee_hatchet = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(4, 4, 0), ang = Angle(0, 120, -5) },
+        weapon_rem_melee_hg_crowbar = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) }
+    },
+    default = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
 }
 
--- Конфиг позиций ищется в нескольких местах — чтобы файл можно было просто
--- кинуть в папку lua/autorun/server рядом с этим файлом. Позиции читает
--- ТОЛЬКО сервер и рассылает клиентам — на клиенте никакой файл не нужен.
-local ConfigPaths = {
-    "autorun/server/rem_holster_positions.lua", -- основной: рядом с этим файлом
-    "rem_holster/positions.lua",                -- старый путь (если уже настроен)
-    "autorun/server/rem_holster/positions.lua",
-    "rem_holster_positions.lua",
-}
-
-local function LoadHolsterConfig()
-    for _, path in ipairs(ConfigPaths) do
-        local ok, result = pcall(include, path)
-        if ok and istable(result) and istable(result.weapons) then
-            return result
-        end
-        if istable(RemHolsterPositions) and istable(RemHolsterPositions.weapons) then
-            return RemHolsterPositions
-        end
+local function LoadPositions()
+    local ok, result = pcall(include, "holster/positions.lua")
+    local positions = nil
+    if ok and istable(result) and istable(result.weapons) then
+        positions = result
+    elseif istable(RemHolsterPositions) and istable(RemHolsterPositions.weapons) then
+        positions = RemHolsterPositions
     end
-    return nil
+
+    if not positions then
+        if not ok then
+            print("[Rem Holster] Не удалось загрузить lua/holster/positions.lua: " .. tostring(result))
+        else
+            print("[Rem Holster] lua/holster/positions.lua не содержит таблицу weapons, используются встроенные позиции.")
+        end
+        positions = BuiltinPositions
+    elseif not istable(positions.default) then
+        positions.default = BuiltinPositions.default
+    end
+
+    return positions.weapons, positions.default
 end
 
-local HolsterConfigTable = LoadHolsterConfig()
+local HolsterWeapons, HolsterDefault = LoadPositions()
+
+local HolsterConfigTable = { weapons = HolsterWeapons, default = HolsterDefault }
 
 -- Белый список back-оружия: это ключи секции weapons конфига позиций.
 local ExtraRemBackMelee = (function()
@@ -126,8 +132,12 @@ local ExtraRemBackMelee = (function()
             return list
         end
     end
-    print("[Rem Holster] Конфиг позиций не найден — используются встроенные значения (положи lua/autorun/server/rem_holster_positions.lua).")
-    return BuiltinRemBackMelee
+    print("[Rem Holster] lua/holster/positions.lua не загрузился — используются встроенные позиции.")
+    return (function()
+        local builtin = {}
+        for class in pairs(BuiltinPositions.weapons) do builtin[class] = true end
+        return builtin
+    end)()
 end)()
 
 -- Returns true for any Remorseim weapon allowed on the back (white list only).
@@ -395,8 +405,9 @@ end
 
 -- Send at most one holstered Remorseim weapon to the client for the back holster.
 -- The active weapon is held, not shown on the back.
--- Конфиг позиций уходит клиенту один раз при заходе — настраивать нужно
--- только на сервере (lua/autorun/server/rem_holster_positions.lua).
+-- Конфиг позиций уходит клиенту при заходе: клиент и сам читает
+-- lua/holster/positions.lua, а это гарантирует те же значения, даже если
+-- файл на клиенте почему-то не подхватился.
 local function SendHolsterConfig(ply)
     if not HolsterConfigTable or not IsValid(ply) then return end
     net.Start("Rem_Holster_Config")

@@ -82,31 +82,44 @@ weapon_hg_axe = {
 аддон не упадёт — он запишет предупреждение в консоль и будет использовать
 встроенный список и встроенные позиции.
 
-## Remorseim Back Holster (временно — файлы в директории Гмода)
+## Remorseim Back Holster
 
-Папка **`rem_holster/`** — отдельная система для милишек **Remorseim Gun Pack**
-(списки из 11 классов: `weapon_rem_melee_hg_spear`, `weapon_rem_melee_hg_sledgehammer`,
+Второй аддон, **`rem_holster/`** — для милишек **Remorseim Gun Pack**
+(11 классов: `weapon_rem_melee_hg_spear`, `weapon_rem_melee_hg_sledgehammer`,
 `weapon_rem_melee_hg_shovel`, `weapon_rem_melee_hg_spear_pro`, `weapon_rem_melee_hg_machete`,
 `weapon_rem_melee_hatchet`, `weapon_rem_melee_hg_axe`, `weapon_rem_melee_hg_crowbar`,
 `weapon_rem_melee_chainsaw`, `weapon_rem_melee_bat`, `weapon_rem_melee_metalbat`).
 
-- **Временная установка:** файлы кидаются в папки Гмода —
-  `garrysmod/lua/autorun/server` (`rem_holster_sv.lua` + `rem_holster_positions.lua`)
-  и `garrysmod/lua/autorun/client` (`rem_holster_cl.lua`) — без папки-аддона;
-  позже всё будет собрано в аддон.
+Устроен **точно так же, как `zcity_holster`** — это такой же отдельный аддон:
+
+```
+addon.json                                  -- метаданные аддона для GMod
+lua/
+  autorun/
+    client/rem_holster_cl.lua               -- отрисовка модели на спине / на рагдолле
+    server/rem_holster_sv.lua               -- правила переноса и дропа на сервере
+  holster/
+    positions.lua                           -- ← ГЛАВНЫЙ список back-оружия + позиции
+```
+
+- Установка: папку положить в `garrysmod/addons/`, перезапустить сервер /
+  сменить карту. Файлы клиентам отдаются через `AddCSLuaFile`.
+- Белый список и позиции — в **`lua/holster/positions.lua`**, формат точно
+  такой же, как у `zcity_holster` (bone / pos / ang). Файл читают и сервер,
+  и клиент; если он битый — работают встроенные значения.
 - Работает **рядом** с `zcity_holster` и не конфликтует с ним: у каждого свой
   белый список, свои позиции и свои хуки (за спиной максимум 1 ZCity + 1 Remorseim предмет).
-- Белый список и позиции — в **`lua/autorun/server/rem_holster_positions.lua`**
-  (правится на сервере; сервер сам присылает позиции клиентам).
 - Модели берутся из самих оружий Remorseim по их путям: на спине стоит
   **та же модель, что пак показывает в руках и на земле при выбрасывании** —
   `WorldModelExchange` (своя модель реморсеима) @ `modelscale`, иначе
   `WorldModelReal` (модель в руках) @ `modelscale2`, иначе `WorldModel`.
-  Пак Remorseim Gun Pack не патчится: ни его `.lua`, ни его модели не
-  меняются, отображение оружия в игре и z_city-оружие не трогаются.
+  Модель ставится своим центром, поэтому `pos`/`ang` означают одно и то же
+  для любого оружия. Пак Remorseim Gun Pack не патчится: ни его `.lua`,
+  ни его модели не меняются, отображение оружия в игре и z_city-оружие не трогаются.
 - **Построение моделей сделано для всех оружий:** при старте сервера и клиента
   автоматически прекешируются модели ВСЕХ зарегистрированных оружий (реморсеима
   и любых других, включая будущие) — баг «моделька не рисуется» не повторится
   ни для одного оружия.
-- Готовый архив: **`rem_holster.zip`** (распаковать в папку `garrysmod`).
+- Готовый архив: **`rem_holster.zip`** (внутри папка `rem_holster/` — распаковать
+  в `garrysmod/addons/`).
 - Подробности: `rem_holster/README.md`.
