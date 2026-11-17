@@ -138,23 +138,12 @@ net.Receive("Rem_Holster_Sync", function()
                         local scale = tonumber(weaponData.scale) or 1
                         prop:SetModelScale(scale)
 
-                        -- Центр геометрии модели. У моделей пака (у биты —
-                        -- v_me_bat_metal) origin стоит не в середине оружия,
-                        -- поэтому привязка «по origin» уводит оружие со спины.
-                        -- Считаем центр по границам модели и ставим в pos именно
-                        -- его — тогда pos означает «где на спине середина оружия»,
-                        -- одинаково для любой модели пака.
-                        -- GetModelRenderBounds не зависит от анимаций (в отличие
-                        -- от GetModelBounds, который раздут анимациями вьюмодели).
-                        local center = Vector(0, 0, 0)
-                        local ok, mins, maxs = pcall(prop.GetModelRenderBounds, prop)
-                        if not ok or not mins or not maxs then
-                            mins, maxs = prop:GetModelBounds()
-                        end
-                        if mins and maxs then
-                            center = (mins + maxs) * 0.5 * scale
-                        end
-
+                        -- ВАЖНО: никакого сдвига по границам модели здесь быть
+                        -- не должно. У моделей пака origin совпадает с местом
+                        -- хвата, и pos/ang в конфиге размечены ровно под него
+                        -- (те же значения, что у weapon_bat в z_city, который
+                        -- рисуется этой же моделью). Любая попытка «подвинуть к
+                        -- центру» уводит оружие с тела — проверено дважды.
                         if not RemHolsterAnnounced[weaponData.class] then
                             RemHolsterAnnounced[weaponData.class] = true
                             print("[Rem Holster] На спине: " .. tostring(weaponData.class) .. " -> " .. tostring(model))
@@ -163,8 +152,7 @@ net.Receive("Rem_Holster_Sync", function()
                             ent = prop,
                             bone = config.bone,
                             pos = config.pos,
-                            ang = config.ang,
-                            center = center
+                            ang = config.ang
                         }
                         break
                     end
@@ -197,16 +185,6 @@ local function DrawHolstersOn(ent, owner)
                     worldAng:RotateAroundAxis(boneAng:Forward(), modelData.ang.p)
                     worldAng:RotateAroundAxis(boneAng:Right(), modelData.ang.y)
                     worldAng:RotateAroundAxis(boneAng:Up(), modelData.ang.r)
-
-                    -- pos задаёт место ЦЕНТРА оружия на спине: вычитаем
-                    -- смещение origin->центр в повёрнутой системе модели.
-                    local c = modelData.center
-                    if c then
-                        worldPos = worldPos
-                            - worldAng:Forward() * c.x
-                            - worldAng:Right() * c.y
-                            - worldAng:Up() * c.z
-                    end
 
                     prop:SetPos(worldPos)
                     prop:SetAngles(worldAng)

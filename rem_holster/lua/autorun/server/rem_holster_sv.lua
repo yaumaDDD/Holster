@@ -367,24 +367,27 @@ hook.Add("WeaponEquip", "Rem_ReplaceBackMelee", function(wep, ply)
     end
 end)
 
--- Модель для спины = ровно та, что пак показывает в руках и на земле при
+-- Модель для спины = ровно та, что пак рисует в руках и на земле при
 -- выбрасывании (DrawWorldModel2): WorldModelExchange @ modelscale,
 -- иначе WorldModelReal @ modelscale2, иначе WorldModel @ modelscale2.
+-- Масштаб берём ИМЕННО тот, которым пак рисует эту модель, иначе оружие на
+-- спине будет другого размера, чем в руках (например бита: modelscale 1.45
+-- относится к WorldModel, а модель в руках рисуется с modelscale2 = 1).
 -- Ничего не хардкодим и не фильтруем по имени файла: у пака своя модель на
 -- каждое оружие, и на спине должна стоять именно она.
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
     if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
-        return wep.WorldModelExchange, wep.modelscale or 1
+        return wep.WorldModelExchange, tonumber(wep.modelscale) or 1
     end
 
     if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
-        return wep.WorldModelReal, wep.modelscale2 or 1
+        return wep.WorldModelReal, tonumber(wep.modelscale2) or 1
     end
 
     if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
-        return wep.WorldModel, wep.modelscale2 or 1
+        return wep.WorldModel, tonumber(wep.modelscale2) or 1
     end
 
     return nil
