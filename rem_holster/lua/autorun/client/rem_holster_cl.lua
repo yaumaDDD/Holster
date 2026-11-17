@@ -135,7 +135,17 @@ net.Receive("Rem_Holster_Sync", function()
                     else
                         prop:SetNoDraw(true)
                         -- Масштаб как в игре (modelscale у пака).
-                        prop:SetModelScale(tonumber(weaponData.scale) or 1)
+                        local scale = tonumber(weaponData.scale) or 1
+                        prop:SetModelScale(scale)
+                        -- Модели вроде v_me_bat_metal сделаны как вьюмодели —
+                        -- точка привязки у ручки, а не в центре. Считаем центр
+                        -- модели, чтобы pos/ang описывали, где на спине сидит
+                        -- ЦЕНТР оружия (как у обычных моделей с центром в нуле).
+                        local center = Vector(0, 0, 0)
+                        local mins, maxs = prop:GetModelBounds()
+                        if mins and maxs then
+                            center = (mins + maxs) * 0.5 * scale
+                        end
                         if not RemHolsterAnnounced[weaponData.class] then
                             RemHolsterAnnounced[weaponData.class] = true
                             print("[Rem Holster] На спине: " .. tostring(weaponData.class) .. " -> " .. tostring(model))
@@ -144,7 +154,8 @@ net.Receive("Rem_Holster_Sync", function()
                             ent = prop,
                             bone = config.bone,
                             pos = config.pos,
-                            ang = config.ang
+                            ang = config.ang,
+                            center = center
                         }
                         break
                     end
@@ -177,6 +188,17 @@ local function DrawHolstersOn(ent, owner)
                     worldAng:RotateAroundAxis(boneAng:Forward(), modelData.ang.p)
                     worldAng:RotateAroundAxis(boneAng:Right(), modelData.ang.y)
                     worldAng:RotateAroundAxis(boneAng:Up(), modelData.ang.r)
+
+                    -- Компенсация точки привязки: pos задаёт место ЦЕНТРА модели,
+                    -- а её origin (ручка у вьюмоделей вроде v_me_bat_metal)
+                    -- смещается сам.
+                    local c = modelData.center
+                    if c then
+                        worldPos = worldPos
+                            - worldAng:Forward() * c.x
+                            - worldAng:Right() * c.y
+                            - worldAng:Up() * c.z
+                    end
 
                     prop:SetPos(worldPos)
                     prop:SetAngles(worldAng)
