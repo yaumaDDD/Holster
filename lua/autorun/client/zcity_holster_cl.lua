@@ -96,6 +96,22 @@ local function GetModelAnchor(prop, headBone)
         end
     end
 
+    -- 3) иначе ищем кость по имени, похожему на точку хвата (weapon/hand/grip)
+    if #candidates == 0 then
+        for i = 0, count - 1 do
+            local ok, name = pcall(prop.GetBoneName, prop, i)
+            if ok and isstring(name) then
+                local lower = string.lower(name)
+                if string.find(lower, "hand", 1, true)
+                    or string.find(lower, "weapon", 1, true)
+                    or string.find(lower, "grip", 1, true) then
+                    candidates[#candidates + 1] = i
+                    break
+                end
+            end
+        end
+    end
+
     if #candidates == 0 then return Vector(0, 0, 0) end
 
     -- Меряем смещение кости в локальных координатах модели: временно ставим
@@ -120,6 +136,125 @@ local function GetModelAnchor(prop, headBone)
 
     return anchor or Vector(0, 0, 0)
 end
+
+-- ============================================================
+--  ДИАГНОСТИКА (для отладки моделей на спине)
+-- ============================================================
+-- Пишет в консоль и в файл garrysmod/data/holster_diag.txt полный отчёт:
+-- какая модель у каждого оружия из списка, сколько у неё костей, есть ли
+-- кость хвата (basebone / *_R_Hand), какой получен якорь и куда в итоге
+-- встала бы модель. Если что-то встаёт криво — по этому логу видно, на
+-- каком шаге и почему.
+local DIAG_FILE = "holster_diag.txt"
+local DiagLines = {}
+
+local function Diag(line)
+    DiagLines[#DiagLines + 1] = line
+    MsgC(Color(120, 200, 255), "[Holster] ", Color(255, 255, 255), line .. "\n")
+end
+
+local function DiagFlush()
+    local body = table.concat(DiagLines, "\n")
+    file.Write(DIAG_FILE, body .. "\n")
+    Diag("Отчёт записан: garrysmod/data/" .. DIAG_FILE)
+end
+
+local function DiagModel(prop, cls, model, scale, basebone)
+    local okCount, count = pcall(prop.GetBoneCount, prop)
+    count = okCount and tonumber(count) or 0
+
+    local handIdx, handName = -1, "нет"
+    for _, name in ipairs({ "ValveBiped.Bip01_R_Hand", "ValveBiped.Bip01_L_Hand", "ValveBiped.Bip01_R_Forearm" }) do
+        local ok, idx = pcall(prop.LookupBone, prop, name)
+        if ok and tonumber(idx) and tonumber(idx) > 0 then
+            handIdx, handName = tonumber(idx), name
+            break
+        end
+    end
+
+    local bb = tonumber(basebone)
+    local bbValid = bb and bb >= 0 and bb < count
+
+    Diag(string.format("  %s", cls))
+    Diag(string.format("    модель : %s", tostring(model)))
+    Diag(string.format("    масштаб: %s", tostring(scale)))
+    Diag(string.format("    костей : %d", count))
+    Diag(string.format("    basebone: %s (%s)", tostring(basebone), bbValid and "есть" or "НЕТ такой кости"))
+    Diag(string.format("    кость руки: %s (%s)", tostring(handIdx), handName))
+
+    if count <= 0 then
+        Diag("    !! у модели нет костей — привязка по origin")
+        return
+    end
+    if bbValid then
+        Diag("    -> привязка по basebone (как в руках у пака)")
+    elseif handIdx > 0 then
+        Diag("    -> basebone нет, привязка по кости руки")
+    else
+        Diag("    !! ни basebone, ни кости руки — привязка по origin (может встать криво)")
+    end
+end
+
+local function RunDiag()
+    DiagLines = {}
+    Diag("=== Holster: проверка моделей на спине ===")
+    Diag(string.format("оружий в списке: %d", (function()
+        local n = 0
+        for _ in pairs(HolsterConfig or {}) do n = n + 1 end
+        return n
+    end)()))
+
+    local list = weapons.GetList and weapons.GetList() or {}
+    local found = 0
+    for _, wepTbl in pairs(list) do
+        local cls = wepTbl.Classname or wepTbl.ClassName
+        if isstring(cls) and isstring(wepTbl.WorldModel) then
+            local hasEntry = HolsterConfig and HolsterConfig[cls] ~= nil
+            if hasEntry or string.sub(cls, 1, 16) == "weapon_rem_melee" then
+                local model, scale = wepTbl.WorldModel, 1
+                if string.sub(cls, 1, 16) == "weapon_rem_melee" then
+                    if isstring(wepTbl.WorldModelExchange) and wepTbl.WorldModelExchange ~= "" then
+                        model, scale = wepTbl.WorldModelExchange, tonumber(wepTbl.modelscale) or 1
+                    elseif isstring(wepTbl.WorldModelReal) and wepTbl.WorldModelReal ~= "" then
+                        model, scale = wepTbl.WorldModelReal, tonumber(wepTbl.modelscale2) or 1
+                    end
+                end
+
+                found = found + 1
+                if not hasEntry then
+                    Diag(string.format("  %s — НЕ в списке positions.lua (за спину не попадёт)", cls))
+                else
+                    pcall(util.PrecacheModel, model)
+                    local prop = ClientsideModel(model, RENDERGROUP_OPAQUE)
+                    if not IsValid(prop) then
+                        Diag(string.format("  %s — не удалось создать модель %s", cls, tostring(model)))
+                    else
+                        if prop:GetModel() == "models/error.mdl" then
+                            Diag(string.format("  %s — МОДЕЛЬ НЕ НАЙДЕНА: %s", cls, tostring(model)))
+                        else
+                            prop:SetNoDraw(true)
+                            prop:SetModelScale(scale)
+                            DiagModel(prop, cls, model, scale, wepTbl.basebone)
+                        end
+                        prop:Remove()
+                    end
+                end
+            end
+        end
+    end
+
+    Diag(string.format("проверено оружий: %d", found))
+    DiagFlush()
+end
+
+concommand.Add("holster_diag", function()
+    RunDiag()
+end)
+
+-- Автоматически один раз после загрузки (не мешает игре, просто пишет лог).
+timer.Simple(6, function()
+    pcall(RunDiag)
+end)
 
 -- Прекеш моделей всех оружий на клиенте: у паков модели рисуются через
 -- ClientsideModel, и движок иначе может их не знать («моделька не рисуется»).
