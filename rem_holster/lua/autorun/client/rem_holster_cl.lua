@@ -12,38 +12,16 @@
 local BuiltinPositions = {
     weapons = {
         weapon_rem_melee_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(0, -20, -2.5) },
-        weapon_rem_melee_hg_spear_knife = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(0, -20, -2.5) },
-        weapon_rem_melee_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(90, -15, -2.5) },
         weapon_rem_melee_hg_sledgehammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
-        weapon_rem_melee_ram = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
         weapon_rem_melee_hg_shovel = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 2.5, 0), ang = Angle(65, 0, 265) },
-        weapon_rem_melee_chainsaw = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
-        weapon_rem_melee_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(90, 120, -5) },
-        weapon_rem_melee_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
-        weapon_rem_melee_metalbat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
-        weapon_rem_melee_chair_leg = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
-        weapon_rem_melee_table_leg = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
-        weapon_rem_melee_hg_extinguisher = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
-        weapon_rem_melee_ballistic_shield = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
+        weapon_rem_melee_hg_spear_pro = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(90, -15, -2.5) },
         weapon_rem_melee_hg_machete = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) },
         weapon_rem_melee_hatchet = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(4, 4, 0), ang = Angle(0, 120, -5) },
+        weapon_rem_melee_hg_axe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(90, 120, -5) },
         weapon_rem_melee_hg_crowbar = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) },
-        weapon_rem_melee_hg_crowbar_gordon = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) },
-        weapon_rem_melee_hammer = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
-        weapon_rem_melee_leadpipe = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) },
-        weapon_rem_melee_hg_tonfa = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) },
-        weapon_rem_melee_hg_stunstick = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, -60, 0) },
-        weapon_rem_melee_combatknife = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) },
-        weapon_rem_melee_buck200knife = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) },
-        weapon_rem_melee_sogknife = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) },
-        weapon_rem_melee_pocketknife = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(2, 3.5, 0), ang = Angle(0, 60, -5) },
-        weapon_rem_melee_brick = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
-        weapon_rem_melee_hg_bottle = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
-        weapon_rem_melee_hg_bottlebroken = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
-        weapon_rem_melee_hg_mug = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
-        weapon_rem_melee_hg_glassshard = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
-        weapon_rem_melee_hg_glassshard_taped = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) },
-        weapon_rem_melee_pan = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
+        weapon_rem_melee_chainsaw = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-5, 4, 0), ang = Angle(0, -90, -2.5) },
+        weapon_rem_melee_bat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) },
+        weapon_rem_melee_metalbat = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 4, 3), ang = Angle(0, -115, -5) }
     },
     default = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
 }
@@ -72,6 +50,48 @@ local function LoadPositions()
 end
 
 local HolsterConfig, DefaultHolsterConfig = LoadPositions()
+
+-- ================= Построение моделей ВСЕХ оружий =================
+-- Профилактика бага «моделька не рисуется»: модели паков (Remorseim и не
+-- только) используются через ClientsideModel/пропы, а не через регистрацию
+-- SWEP, поэтому движок может их не знать. При старте собираем ВСЕ .mdl-пути
+-- из ВСЕХ зарегистрированных оружий (включая будущие) и прекешируем их —
+-- построение моделей одинаково для всех, чтобы багов не было потом.
+local function CollectModelStrings(tbl, depth, seen, out)
+    if type(tbl) ~= "table" or seen[tbl] or (depth or 0) > 6 then return end
+    seen[tbl] = true
+    for _, v in pairs(tbl) do
+        if type(v) == "string" and string.sub(v, -4) == ".mdl" then
+            out[v] = true
+        elseif type(v) == "table" then
+            CollectModelStrings(v, (depth or 0) + 1, seen, out)
+        end
+    end
+end
+
+local ModelsPrechachedReported = false
+
+local function RemHolsterPrecacheAllModels()
+    local out, seen = {}, {}
+    for _, wepTbl in pairs(weapons.GetList()) do
+        CollectModelStrings(wepTbl, 0, seen, out)
+    end
+
+    local n = 0
+    for mdl in pairs(out) do
+        pcall(util.PrecacheModel, mdl)
+        n = n + 1
+    end
+
+    if not ModelsPrechachedReported then
+        ModelsPrechachedReported = true
+        print("[Rem Holster] Построение моделей: прекешировано моделей оружия — " .. n)
+    end
+end
+
+hook.Add("Initialize", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
+hook.Add("InitPostEntity", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
+timer.Simple(2, RemHolsterPrecacheAllModels)
 
 local function ClearHolsters(ply)
     if not istable(ply.RemHolsterModels) then

@@ -84,11 +84,11 @@ weapon_hg_axe = {
 
 ## Remorseim Back Holster (временно — файлы в директории Гмода)
 
-Папка **`rem_holster/`** — отдельная система для милишек **Remorseim Gun Pack**.
-Подключено **всё ближнее оружие пака (33 класса)**: копья, топоры, кувалды,
-биты, ломы, ножи, дубинки и мелочь (бутылки, кружки, сковорода и т.д.) —
-список и позиции в `lua/rem_holster/positions.lua` (строку можно удалить
-или добавить свою).
+Папка **`rem_holster/`** — отдельная система для милишек **Remorseim Gun Pack**
+(списки из 11 классов: `weapon_rem_melee_hg_spear`, `weapon_rem_melee_hg_sledgehammer`,
+`weapon_rem_melee_hg_shovel`, `weapon_rem_melee_hg_spear_pro`, `weapon_rem_melee_hg_machete`,
+`weapon_rem_melee_hatchet`, `weapon_rem_melee_hg_axe`, `weapon_rem_melee_hg_crowbar`,
+`weapon_rem_melee_chainsaw`, `weapon_rem_melee_bat`, `weapon_rem_melee_metalbat`).
 
 - **Временная установка:** файлы кладутся прямо в директорию Гмода
   (`garrysmod/lua/autorun/server`, `garrysmod/lua/autorun/client`,
@@ -102,5 +102,9 @@ weapon_hg_axe = {
   в руках, на земле и при броске; иначе `WorldModel`), в игровом масштабе.
   Стандартные z_city-модели не подставляются, отображение самого оружия в игре
   и z_city-оружие не трогаются.
+- **Построение моделей сделано для всех оружий:** при старте сервера и клиента
+  автоматически прекешируются модели ВСЕХ зарегистрированных оружий (реморсеима
+  и любых других, включая будущие) — баг «моделька не рисуется» не повторится
+  ни для одного оружия.
 - Готовый архив: **`rem_holster.zip`** (распаковать в папку `garrysmod`).
 - Подробности: `rem_holster/README.md`.

@@ -30,41 +30,61 @@ util.AddNetworkString("Rem_Holster_Sync")
 
 hg = hg or {}
 
+-- ================= Построение моделей ВСЕХ оружий =================
+-- Профилактика бага «моделька не рисуется»: модели паков используются
+-- через ClientsideModel/пропы, а не через регистрацию SWEP, поэтому движок
+-- может их не знать (и пропы выброшенного оружия тоже). При старте собираем
+-- ВСЕ .mdl-пути из ВСЕХ зарегистрированных оружий (включая будущие) и
+-- прекешируем их — построение моделей одинаково для всех, без багов потом.
+local function CollectModelStrings(tbl, depth, seen, out)
+    if type(tbl) ~= "table" or seen[tbl] or (depth or 0) > 6 then return end
+    seen[tbl] = true
+    for _, v in pairs(tbl) do
+        if type(v) == "string" and string.sub(v, -4) == ".mdl" then
+            out[v] = true
+        elseif type(v) == "table" then
+            CollectModelStrings(v, (depth or 0) + 1, seen, out)
+        end
+    end
+end
+
+local ModelsPrechachedReported = false
+
+local function RemHolsterPrecacheAllModels()
+    local out, seen = {}, {}
+    for _, wepTbl in pairs(weapons.GetList()) do
+        CollectModelStrings(wepTbl, 0, seen, out)
+    end
+
+    local n = 0
+    for mdl in pairs(out) do
+        pcall(util.PrecacheModel, mdl)
+        n = n + 1
+    end
+
+    if not ModelsPrechachedReported then
+        ModelsPrechachedReported = true
+        print("[Rem Holster] Построение моделей: прекешировано моделей оружия — " .. n)
+    end
+end
+
+hook.Add("Initialize", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
+hook.Add("InitPostEntity", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
+timer.Simple(2, RemHolsterPrecacheAllModels)
+
 -- Зеркало списка из lua/rem_holster/positions.lua — используется, если файл не загрузился.
 local BuiltinRemBackMelee = {
     weapon_rem_melee_hg_spear = true,
-    weapon_rem_melee_hg_spear_knife = true,
-    weapon_rem_melee_hg_spear_pro = true,
     weapon_rem_melee_hg_sledgehammer = true,
-    weapon_rem_melee_ram = true,
     weapon_rem_melee_hg_shovel = true,
-    weapon_rem_melee_chainsaw = true,
-    weapon_rem_melee_hg_axe = true,
-    weapon_rem_melee_bat = true,
-    weapon_rem_melee_metalbat = true,
-    weapon_rem_melee_chair_leg = true,
-    weapon_rem_melee_table_leg = true,
-    weapon_rem_melee_hg_extinguisher = true,
-    weapon_rem_melee_ballistic_shield = true,
+    weapon_rem_melee_hg_spear_pro = true,
     weapon_rem_melee_hg_machete = true,
     weapon_rem_melee_hatchet = true,
+    weapon_rem_melee_hg_axe = true,
     weapon_rem_melee_hg_crowbar = true,
-    weapon_rem_melee_hg_crowbar_gordon = true,
-    weapon_rem_melee_hammer = true,
-    weapon_rem_melee_leadpipe = true,
-    weapon_rem_melee_hg_tonfa = true,
-    weapon_rem_melee_hg_stunstick = true,
-    weapon_rem_melee_combatknife = true,
-    weapon_rem_melee_buck200knife = true,
-    weapon_rem_melee_sogknife = true,
-    weapon_rem_melee_pocketknife = true,
-    weapon_rem_melee_brick = true,
-    weapon_rem_melee_hg_bottle = true,
-    weapon_rem_melee_hg_bottlebroken = true,
-    weapon_rem_melee_hg_mug = true,
-    weapon_rem_melee_hg_glassshard = true,
-    weapon_rem_melee_hg_glassshard_taped = true,
-    weapon_rem_melee_pan = true
+    weapon_rem_melee_chainsaw = true,
+    weapon_rem_melee_bat = true,
+    weapon_rem_melee_metalbat = true
 }
 
 -- Белый список back-оружия: это ключи секции weapons из lua/rem_holster/positions.lua.
