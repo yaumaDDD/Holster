@@ -383,7 +383,10 @@ local function SyncWeapons(ply)
                 data[1] = {
                     class = wep:GetClass(),
                     model = model,
-                    scale = scale or 1
+                    scale = scale or 1,
+                    -- Кость хвата: пак цепляет модель именно за неё
+                    -- (basebone; у Remorseim-биты это 94).
+                    bone_index = tonumber(wep.basebone)
                 }
                 break
             end

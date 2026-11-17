@@ -62,59 +62,63 @@ end
 
 local HolsterConfig, DefaultHolsterConfig = LoadPositions()
 
--- Центр геометрии модели в её локальных координатах.
--- У части моделей точка привязки стоит НЕ в середине оружия (например у
--- алюминиевой биты Remorseim — на ручке), поэтому оружие ставится в спину
--- своим ЦЕНТРОМ: так pos/ang означают одно и то же для любого оружия, и
--- модель в руках садится туда же, куда села бы мировая.
--- Меряем по КОСТЯМ, а не по границам модели: у вьюмоделей bbox раздут
--- анимациями в разы и сдвиг по нему уводит оружие с тела.
-local function MeasureModelCenter(prop, scale)
-    scale = tonumber(scale) or 1
+-- Точка привязки модели — КОСТЬ ХВАТА, ровно как это делает сам пак.
+--
+-- Z-City и Remorseim Gun Pack ставят модель относительно кости хвата
+-- (weapon_rem_melee_base:DrawWorldModel2 -> GetBoneMatrix(self.basebone or 1),
+-- у биты basebone = 94). Модели паков сделаны так, что в руках оружие
+-- красиво висит именно от этой точки, а НЕ от origin и НЕ от центра.
+--
+-- Поэтому и на спине мы цепляем это же место: тогда оружие на спине стоит
+-- так же, как стояло бы в руке, и pos/ang означают «куда на спине приходит
+-- точка хвата». Никаких измерений bbox (он раздут анимациями вьюмодели) и
+-- никаких «центров» — только кость, которую использует сам пак.
+--
+-- Если у модели нет такой кости (обычные мировые модели Z-City), смещение
+-- остаётся нулевым — они и так корректно ставятся своим origin.
+local function GetModelAnchor(prop, headBone)
+    if not IsValid(prop) then return Vector(0, 0, 0) end
 
-    local boneCount = 0
     local okBones, count = pcall(prop.GetBoneCount, prop)
-    if okBones and tonumber(count) then boneCount = tonumber(count) end
+    count = okBones and tonumber(count) or 0
+    if count <= 0 then return Vector(0, 0, 0) end
 
-    local mins, maxs
-    if boneCount > 0 then
-        local savedPos, savedAng = prop:GetPos(), prop:GetAngles()
-        prop:SetPos(vector_origin)
-        prop:SetAngles(angle_zero)
-        prop:SetupBones()
-
-        local bmin, bmax
-        for i = 0, boneCount - 1 do
-            local p = prop:GetBonePosition(i)
-            if p then
-                if not bmin then
-                    bmin = Vector(p.x, p.y, p.z)
-                    bmax = Vector(p.x, p.y, p.z)
-                else
-                    bmin = Vector(math.min(bmin.x, p.x), math.min(bmin.y, p.y), math.min(bmin.z, p.z))
-                    bmax = Vector(math.max(bmax.x, p.x), math.max(bmax.y, p.y), math.max(bmax.z, p.z))
-                end
-            end
-        end
-
-        prop:SetPos(savedPos)
-        prop:SetAngles(savedAng)
-        prop:SetupBones()
-
-        if bmin and bmax then
-            mins, maxs = bmin, bmax -- кости уже с учётом масштаба
+    -- 1) кость хвата из оружия (у Remorseim берём basebone, если он <= count)
+    local candidates = {}
+    if tonumber(headBone) and tonumber(headBone) >= 0 and tonumber(headBone) < count then
+        candidates[#candidates + 1] = tonumber(headBone)
+    end
+    -- 2) иначе ищем по имени стандартную кость руки/оружия
+    for _, name in ipairs({ "ValveBiped.Bip01_R_Hand", "ValveBiped.Bip01_L_Hand", "ValveBiped.Bip01_R_Forearm" }) do
+        local ok, idx = pcall(prop.LookupBone, prop, name)
+        if ok and tonumber(idx) and tonumber(idx) > 0 then
+            candidates[#candidates + 1] = tonumber(idx)
         end
     end
 
-    if not mins or not maxs then
-        local ok, a, b = pcall(prop.GetModelRenderBounds, prop)
-        if ok and a and b then
-            mins, maxs = a * scale, b * scale
+    if #candidates == 0 then return Vector(0, 0, 0) end
+
+    -- Меряем смещение кости в локальных координатах модели: временно ставим
+    -- модель в ноль, чтобы кость отдала локальную позицию.
+    local savedPos, savedAng = prop:GetPos(), prop:GetAngles()
+    prop:SetPos(vector_origin)
+    prop:SetAngles(angle_zero)
+    prop:SetupBones()
+
+    local anchor
+    for _, idx in ipairs(candidates) do
+        local ok, p = pcall(prop.GetBonePosition, prop, idx)
+        if ok and p then
+            anchor = Vector(p.x, p.y, p.z)
+            break
         end
     end
 
-    if not mins or not maxs then return Vector(0, 0, 0) end
-    return (mins + maxs) * 0.5
+    prop:SetPos(savedPos)
+    prop:SetAngles(savedAng)
+    prop:SetupBones()
+
+    return anchor or Vector(0, 0, 0)
 end
 
 -- Прекеш моделей всех оружий на клиенте: у паков модели рисуются через
@@ -189,7 +193,7 @@ net.Receive("ZCity_Holster_Sync", function()
                         local scale = tonumber(weaponData.scale) or 1
                         prop:SetModelScale(scale)
 
-                        local center = MeasureModelCenter(prop, scale)
+                        local anchor = GetModelAnchor(prop, weaponData.bone_index)
                         if not RemHolsterAnnounced[weaponData.class] then
                             RemHolsterAnnounced[weaponData.class] = true
                             print("[Holster] На спине: " .. tostring(weaponData.class) .. " -> " .. tostring(model))
@@ -200,7 +204,7 @@ net.Receive("ZCity_Holster_Sync", function()
                             bone = config.bone,
                             pos = config.pos,
                             ang = config.ang,
-                            center = center
+                            anchor = anchor
                         }
                         break
                     end
@@ -234,8 +238,8 @@ local function DrawHolstersOn(ent, owner)
                     worldAng:RotateAroundAxis(boneAng:Right(), modelData.ang.y)
                     worldAng:RotateAroundAxis(boneAng:Up(), modelData.ang.r)
 
-                    -- Ставим в спину ЦЕНТР оружия, а не его origin.
-                    local c = modelData.center
+                    -- Цепляем оружие за ту же точку, что и в руках (кость хвата).
+                    local c = modelData.anchor
                     if c then
                         worldPos = worldPos
                             - worldAng:Forward() * c.x
