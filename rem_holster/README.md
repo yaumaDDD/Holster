@@ -11,20 +11,22 @@
 ## Установка
 
 1. Распакуйте архив `rem_holster.zip` в папку `garrysmod` — ту, где лежат
-   `addons`, `gamemodes` и `lua`. Файлы должны лечь так:
+   `addons`, `gamemodes` и `lua`. Файлы должны лечь так (3 файла, 2 папки):
 
    ```
    garrysmod/lua/autorun/server/rem_holster_sv.lua
+   garrysmod/lua/autorun/server/rem_holster_positions.lua
    garrysmod/lua/autorun/client/rem_holster_cl.lua
-   garrysmod/lua/rem_holster/positions.lua
    ```
 
 2. Перезапустите сервер / смените карту.
 
 ## Настройка позиций
 
-Откройте **`lua/rem_holster/positions.lua`** — это единственный файл, который
-определяет, какое Rem-оружие носится за спиной и как оно там выглядит.
+Откройте **`lua/autorun/server/rem_holster_positions.lua`** (рядом с серверным
+файлом) — это единственный файл, который определяет, какое Rem-оружие носится
+за спиной и как оно там выглядит. Править нужно ТОЛЬКО на сервере — сервер сам
+присылает позиции всем клиентам, на клиенте файл не нужен.
 Секция `weapons` — полный белый список; всё, чего в нём нет, за спину не
 попадает (остальные Rem-меlee ведут себя как обычное оружие — выбрасываются
 при неактивности, как в стоковом ZCity).

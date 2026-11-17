@@ -90,13 +90,14 @@ weapon_hg_axe = {
 `weapon_rem_melee_hatchet`, `weapon_rem_melee_hg_axe`, `weapon_rem_melee_hg_crowbar`,
 `weapon_rem_melee_chainsaw`, `weapon_rem_melee_bat`, `weapon_rem_melee_metalbat`).
 
-- **Временная установка:** файлы кладутся прямо в директорию Гмода
-  (`garrysmod/lua/autorun/server`, `garrysmod/lua/autorun/client`,
-  `garrysmod/lua/rem_holster`) — без папки-аддона; позже всё будет собрано в аддон.
+- **Временная установка:** файлы кидаются в папки Гмода —
+  `garrysmod/lua/autorun/server` (`rem_holster_sv.lua` + `rem_holster_positions.lua`)
+  и `garrysmod/lua/autorun/client` (`rem_holster_cl.lua`) — без папки-аддона;
+  позже всё будет собрано в аддон.
 - Работает **рядом** с `zcity_holster` и не конфликтует с ним: у каждого свой
   белый список, свои позиции и свои хуки (за спиной максимум 1 ZCity + 1 Remorseim предмет).
-- Белый список и позиции — в **`lua/rem_holster/positions.lua`**
-  (формат такой же, как в `lua/holster/positions.lua`).
+- Белый список и позиции — в **`lua/autorun/server/rem_holster_positions.lua`**
+  (правится на сервере; сервер сам присылает позиции клиентам).
 - Модели берутся из самих оружий Remorseim по их путям: на спине стоит
   **та же модель, что пак показывает в руках** — `WorldModelExchange` (своя
   модель реморсеима) @ `modelscale`, иначе `WorldModelReal` (модель в руках)

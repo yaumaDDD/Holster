@@ -1,14 +1,13 @@
 -- Remorseim Back Holster (client).
--- Временная установка: файлы лежат прямо в директории Гмода —
--- garrysmod/lua/autorun/server, garrysmod/lua/autorun/client и
--- garrysmod/lua/rem_holster (позиции). Пока не собраны в отдельный аддон.
+-- Временная установка: файлы кидаются в папки Гмода —
+-- lua/autorun/server (rem_holster_sv.lua + rem_holster_positions.lua) и
+-- lua/autorun/client (этот файл). Пока не собраны в отдельный аддон.
 --
--- Оружие, которое носится за спиной, и его позиции редактируются в
--- lua/rem_holster/positions.lua (это белый список для сервера и клиента сразу).
--- Если файл не загрузится или в нём ошибка, используются встроенные значения.
+-- Позиции настраиваются в lua/autorun/server/rem_holster_positions.lua —
+-- сервер читает их сам и присылает клиентам; на клиенте файл не нужен.
 -- Модели берутся из самих оружий Remorseim по их путям (сервер присылает путь).
 
--- Встроенный запасной вариант (зеркало lua/rem_holster/positions.lua).
+-- Встроенный запасной вариант (зеркало конфига позиций с сервера).
 local BuiltinPositions = {
     weapons = {
         weapon_rem_melee_hg_spear = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(0, 4, 0), ang = Angle(0, -20, -2.5) },
@@ -26,30 +25,18 @@ local BuiltinPositions = {
     default = { bone = "ValveBiped.Bip01_Spine2", pos = Vector(-3, 5, 0), ang = Angle(0, 90, 170) }
 }
 
-local function LoadPositions()
-    local ok, result = pcall(include, "rem_holster/positions.lua")
-    local positions = nil
-    if ok and istable(result) and istable(result.weapons) then
-        positions = result
-    elseif istable(RemHolsterPositions) and istable(RemHolsterPositions.weapons) then
-        positions = RemHolsterPositions
+-- Позиции приходят с сервера (Rem_Holster_Config); до первого сообщения
+-- работают встроенные значения. Файл конфига на клиенте НЕ нужен и никак
+-- не запрашивается.
+local HolsterConfig, DefaultHolsterConfig = BuiltinPositions.weapons, BuiltinPositions.default
+
+net.Receive("Rem_Holster_Config", function()
+    local cfg = net.ReadTable()
+    if istable(cfg) and istable(cfg.weapons) then
+        HolsterConfig = cfg.weapons
+        DefaultHolsterConfig = istable(cfg.default) and cfg.default or BuiltinPositions.default
     end
-
-    if not positions then
-        if not ok then
-            print("[Rem Holster] Не удалось загрузить lua/rem_holster/positions.lua: " .. tostring(result))
-        else
-            print("[Rem Holster] lua/rem_holster/positions.lua не содержит таблицу weapons, используются встроенные позиции.")
-        end
-        positions = BuiltinPositions
-    elseif not istable(positions.default) then
-        positions.default = BuiltinPositions.default
-    end
-
-    return positions.weapons, positions.default
-end
-
-local HolsterConfig, DefaultHolsterConfig = LoadPositions()
+end)
 
 -- ================= Построение моделей ВСЕХ оружий =================
 -- Профилактика бага «моделька не рисуется»: модели паков (Remorseim и не

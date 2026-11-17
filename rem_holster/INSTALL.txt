@@ -1,0 +1,14 @@
+REM HOLSTER — временный серверный аддон (3 файла, 2 папки)
+
+Распакуй архив в ПАПКУ garrysmod (ту, где лежат addons, gamemodes и lua).
+Файлы должны лечь так:
+
+  lua/autorun/server/rem_holster_sv.lua            — серверная логика
+  lua/autorun/server/rem_holster_positions.lua     — ПОЗИЦИИ (правишь тут)
+  lua/autorun/client/rem_holster_cl.lua            — отображение за спиной
+
+Больше ничего не нужно: позиции правятся ТОЛЬКО в
+lua/autorun/server/rem_holster_positions.lua — сервер сам присылает их
+клиентам. Никакой файл на клиент кидать не надо.
+
+После правки позиций — перезапуск сервера или смена карты.

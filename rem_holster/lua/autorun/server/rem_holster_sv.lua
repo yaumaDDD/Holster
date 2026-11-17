@@ -1,19 +1,18 @@
 -- Remorseim Back Holster (server).
--- Временная установка: файлы лежат прямо в директории Гмода —
--- garrysmod/lua/autorun/server, garrysmod/lua/autorun/client и
--- garrysmod/lua/rem_holster (позиции). Пока не собраны в отдельный аддон.
+-- Временная установка: файлы кидаются в папки Гмода —
+-- lua/autorun/server (этот файл + rem_holster_positions.lua) и
+-- lua/autorun/client (rem_holster_cl.lua). Пока не собраны в отдельный аддон.
 -- Отдельная система для милишек Remorseim Gun Pack. Работает рядом с zcity_holster:
 -- у каждого свой белый список, свои позиции, свой net-канал и свои хуки,
 -- поэтому они не конфликтуют. Модели берутся из самих оружий по их путям
--- (WorldModel — «своя» модель Remorseim), а не хардкодятся.
+-- (WorldModelExchange / WorldModelReal — «своя» модель Remorseim), а не хардкодятся.
 
--- Отдать клиенту клиентскую часть и файл позиций (нужно на выделенном сервере
--- без мастерской; без этого клиенты не получат lua/autorun/client и positions.lua).
+-- Отдать клиенту клиентскую часть (нужно на выделенном сервере без мастерской).
+-- Конфиг позиций клиенту НЕ отдаётся — сервер присылает значения сам.
 AddCSLuaFile("autorun/client/rem_holster_cl.lua")
-AddCSLuaFile("rem_holster/positions.lua")
 
 -- Back holster for Remorseim melee weapons.
---  * Back-оружие — это ровно белый список из lua/rem_holster/positions.lua (секция weapons).
+--  * Back-оружие — это ровно белый список из rem_holster_positions.lua (секция weapons).
 --  * Only ONE Remorseim back weapon is carried. Picking up another one drops the previous one.
 --  * Two-handed firearms (TwoHanded or bigNoDrop) are never dropped by implicit drops.
 --  * Explicit drop commands (radial menu / bind) still drop them.
@@ -27,6 +26,7 @@ AddCSLuaFile("rem_holster/positions.lua")
 --    корректно пропускал только запрошенное оружие.
 
 util.AddNetworkString("Rem_Holster_Sync")
+util.AddNetworkString("Rem_Holster_Config")
 
 hg = hg or {}
 
@@ -75,7 +75,7 @@ timer.Simple(2, function()
     pcall(RemHolsterPrecacheAllModels)
 end)
 
--- Зеркало списка из lua/rem_holster/positions.lua — используется, если файл не загрузился.
+-- Встроенный запасной список back-оружия — используется, если конфиг не найден.
 local BuiltinRemBackMelee = {
     weapon_rem_melee_hg_spear = true,
     weapon_rem_melee_hg_sledgehammer = true,
@@ -90,35 +90,45 @@ local BuiltinRemBackMelee = {
     weapon_rem_melee_metalbat = true
 }
 
--- Белый список back-оружия: это ключи секции weapons из lua/rem_holster/positions.lua.
-local function LoadRemBackMelee()
-    local ok, result = pcall(include, "rem_holster/positions.lua")
-    local positions = nil
-    if ok and istable(result) and istable(result.weapons) then
-        positions = result
-    elseif istable(RemHolsterPositions) and istable(RemHolsterPositions.weapons) then
-        positions = RemHolsterPositions
-    end
+-- Конфиг позиций ищется в нескольких местах — чтобы файл можно было просто
+-- кинуть в папку lua/autorun/server рядом с этим файлом. Позиции читает
+-- ТОЛЬКО сервер и рассылает клиентам — на клиенте никакой файл не нужен.
+local ConfigPaths = {
+    "autorun/server/rem_holster_positions.lua", -- основной: рядом с этим файлом
+    "rem_holster/positions.lua",                -- старый путь (если уже настроен)
+    "autorun/server/rem_holster/positions.lua",
+    "rem_holster_positions.lua",
+}
 
-    if positions then
+local function LoadHolsterConfig()
+    for _, path in ipairs(ConfigPaths) do
+        local ok, result = pcall(include, path)
+        if ok and istable(result) and istable(result.weapons) then
+            return result
+        end
+        if istable(RemHolsterPositions) and istable(RemHolsterPositions.weapons) then
+            return RemHolsterPositions
+        end
+    end
+    return nil
+end
+
+local HolsterConfigTable = LoadHolsterConfig()
+
+-- Белый список back-оружия: это ключи секции weapons конфига позиций.
+local ExtraRemBackMelee = (function()
+    if HolsterConfigTable then
         local list = {}
-        for class in pairs(positions.weapons) do
+        for class in pairs(HolsterConfigTable.weapons) do
             list[class] = true
         end
         if next(list) then
             return list
         end
     end
-
-    if not ok then
-        print("[Rem Holster] Не удалось загрузить lua/rem_holster/positions.lua: " .. tostring(result) .. " — используется встроенный список.")
-    else
-        print("[Rem Holster] lua/rem_holster/positions.lua не содержит секцию weapons — используется встроенный список.")
-    end
+    print("[Rem Holster] Конфиг позиций не найден — используются встроенные значения (положи lua/autorun/server/rem_holster_positions.lua).")
     return BuiltinRemBackMelee
-end
-
-local ExtraRemBackMelee = LoadRemBackMelee()
+end)()
 
 -- Returns true for any Remorseim weapon allowed on the back (white list only).
 local function IsRemBackMelee(wep)
@@ -387,8 +397,28 @@ end
 
 -- Send at most one holstered Remorseim weapon to the client for the back holster.
 -- The active weapon is held, not shown on the back.
+-- Конфиг позиций уходит клиенту один раз при заходе — настраивать нужно
+-- только на сервере (lua/autorun/server/rem_holster_positions.lua).
+local function SendHolsterConfig(ply)
+    if not HolsterConfigTable or not IsValid(ply) then return end
+    net.Start("Rem_Holster_Config")
+        net.WriteTable(HolsterConfigTable)
+    net.Send(ply)
+end
+
+hook.Add("PlayerInitialSpawn", "Rem_Holster_ConfigSync", function(ply)
+    timer.Simple(1, function()
+        if IsValid(ply) then SendHolsterConfig(ply) end
+    end)
+end)
+
 local function SyncWeapons(ply)
     if not IsValid(ply) or not ply:IsPlayer() then return end
+
+    if not ply.RemHolsterConfigSent then
+        ply.RemHolsterConfigSent = true
+        SendHolsterConfig(ply)
+    end
 
     local data = {}
     local active = ply:GetActiveWeapon()
