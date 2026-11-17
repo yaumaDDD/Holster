@@ -344,8 +344,17 @@ end)
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
+    -- Правило отображения — как пак рисует оружие В РУКАХ (DrawWorldModel2):
+    -- 1) WorldModelExchange — своя модель реморсеима @ modelscale;
+    -- 2) иначе WorldModelReal — модель в руках (её рисует карриер, когда
+    --    оружие в руках и нет Exchange) @ modelscale2;
+    -- 3) иначе WorldModel — запасной вариант @ modelscale2.
     if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
         return wep.WorldModelExchange, wep.modelscale or 1
+    end
+
+    if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
+        return wep.WorldModelReal, wep.modelscale2 or 1
     end
 
     if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
