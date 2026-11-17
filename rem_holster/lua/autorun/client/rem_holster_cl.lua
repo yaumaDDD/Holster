@@ -99,6 +99,63 @@ local function ClearHolsters(ply)
     ply.RemHolsterModels = {}
 end
 
+-- Центр геометрии модели в её локальных координатах.
+-- Зачем: у моделей пака origin стоит НЕ в середине оружия (у биты — на
+-- ручке), поэтому если поставить в спину сам origin, оружие уходит вперёд
+-- на пол-длины. У «деревянной» (мировые модели w_*) origin как раз в центре,
+-- и она встаёт правильно — значит меряем центр и ставим его.
+--
+-- МЕРИМ ПО КОСТЯМ, а не по границам модели: у вьюмоделей bbox раздут
+-- анимациями (в разы), и сдвиг по нему уводит оружие с тела. Кости лежат
+-- вдоль самого оружия и дают его настоящую длину.
+local function MeasureModelCenter(prop, fallbackScale)
+    local scale = tonumber(fallbackScale) or 1
+
+    local boneCount = 0
+    local okBones, count = pcall(prop.GetBoneCount, prop)
+    if okBones and tonumber(count) then boneCount = tonumber(count) end
+
+    local mins, maxs
+    if boneCount > 0 then
+        local savedPos, savedAng = prop:GetPos(), prop:GetAngles()
+        prop:SetPos(vector_origin)
+        prop:SetAngles(angle_zero)
+        prop:SetupBones()
+
+        local bmin, bmax
+        for i = 0, boneCount - 1 do
+            local p = prop:GetBonePosition(i)
+            if p then
+                if not bmin then
+                    bmin = Vector(p.x, p.y, p.z)
+                    bmax = Vector(p.x, p.y, p.z)
+                else
+                    bmin = Vector(math.min(bmin.x, p.x), math.min(bmin.y, p.y), math.min(bmin.z, p.z))
+                    bmax = Vector(math.max(bmax.x, p.x), math.max(bmax.y, p.y), math.max(bmax.z, p.z))
+                end
+            end
+        end
+
+        prop:SetPos(savedPos)
+        prop:SetAngles(savedAng)
+        prop:SetupBones()
+
+        if bmin and bmax then
+            mins, maxs = bmin, bmax -- кости уже с учётом масштаба
+        end
+    end
+
+    if not mins or not maxs then
+        local ok, a, b = pcall(prop.GetModelRenderBounds, prop)
+        if ok and a and b then
+            mins, maxs = a * scale, b * scale
+        end
+    end
+
+    if not mins or not maxs then return Vector(0, 0, 0) end
+    return (mins + maxs) * 0.5
+end
+
 local RemHolsterAnnounced = {}
 net.Receive("Rem_Holster_Sync", function()
     local ply = net.ReadEntity()
@@ -138,12 +195,11 @@ net.Receive("Rem_Holster_Sync", function()
                         local scale = tonumber(weaponData.scale) or 1
                         prop:SetModelScale(scale)
 
-                        -- ВАЖНО: никакого сдвига по границам модели здесь быть
-                        -- не должно. У моделей пака origin совпадает с местом
-                        -- хвата, и pos/ang в конфиге размечены ровно под него
-                        -- (те же значения, что у weapon_bat в z_city, который
-                        -- рисуется этой же моделью). Любая попытка «подвинуть к
-                        -- центру» уводит оружие с тела — проверено дважды.
+                        -- pos/ang размечены под МИРОВЫЕ модели (у них origin в
+                        -- центре оружия). Модель из рук может иметь origin на
+                        -- ручке — тогда ставим в спину её центр, и оружие сидит
+                        -- ровно там же, где сидела бы мировая модель.
+                        local center = MeasureModelCenter(prop, scale)
                         if not RemHolsterAnnounced[weaponData.class] then
                             RemHolsterAnnounced[weaponData.class] = true
                             print("[Rem Holster] На спине: " .. tostring(weaponData.class) .. " -> " .. tostring(model))
@@ -152,7 +208,8 @@ net.Receive("Rem_Holster_Sync", function()
                             ent = prop,
                             bone = config.bone,
                             pos = config.pos,
-                            ang = config.ang
+                            ang = config.ang,
+                            center = center
                         }
                         break
                     end
@@ -185,6 +242,15 @@ local function DrawHolstersOn(ent, owner)
                     worldAng:RotateAroundAxis(boneAng:Forward(), modelData.ang.p)
                     worldAng:RotateAroundAxis(boneAng:Right(), modelData.ang.y)
                     worldAng:RotateAroundAxis(boneAng:Up(), modelData.ang.r)
+
+                    -- Ставим в спину ЦЕНТР оружия, а не его origin.
+                    local c = modelData.center
+                    if c then
+                        worldPos = worldPos
+                            - worldAng:Forward() * c.x
+                            - worldAng:Right() * c.y
+                            - worldAng:Up() * c.z
+                    end
 
                     prop:SetPos(worldPos)
                     prop:SetAngles(worldAng)
