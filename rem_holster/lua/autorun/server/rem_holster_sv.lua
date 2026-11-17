@@ -367,48 +367,24 @@ hook.Add("WeaponEquip", "Rem_ReplaceBackMelee", function(wep, ply)
     end
 end)
 
--- Вьюмодель? Это модели v_*.mdl / c_*.mdl — то, что видно от первого лица.
--- Для спины они не годятся: сделаны под камеру, а их bbox раздут анимациями,
--- поэтому в мире такая модель рисуется «плоско» и уезжает от тела.
-local function IsViewModelModel(model)
-    if not isstring(model) or model == "" then return false end
-    local name = model:match("([^/\\]+)$") or model
-    return name:sub(1, 2) == "v_" or name:sub(1, 2) == "c_"
-end
-
--- Путь модели для спины: берём из самого оружия по его путям, но всегда
--- МИРОВУЮ модель (w_*.mdl) — ту же, что лежит на земле, когда оружие выброшено.
--- Порядок: WorldModelExchange (своя модель реморсеима) → WorldModel (мировая
--- модель оружия) → WorldModelReal (в руках у третьего лица).
--- Масштаб: modelscale — это размер оружия в МИРЕ (пак ставит его и на
--- CliensideModel-модель, и на саму weapon-entity), поэтому на спине берём
--- именно его. modelscale2 — только для вида «в руках у третьего лица»,
--- поэтому это крайний запасной вариант.
+-- Модель для спины = ровно та, что пак показывает в руках и на земле при
+-- выбрасывании (DrawWorldModel2): WorldModelExchange @ modelscale,
+-- иначе WorldModelReal @ modelscale2, иначе WorldModel @ modelscale2.
+-- Ничего не хардкодим и не фильтруем по имени файла: у пака своя модель на
+-- каждое оружие, и на спине должна стоять именно она.
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
-    local scale = wep.modelscale or 1
-    local scale2 = wep.modelscale2 or scale
-    local candidates = {
-        { model = wep.WorldModelExchange, scale = scale },
-        { model = wep.WorldModel,         scale = scale },
-        { model = wep.WorldModelReal,     scale = scale2 },
-    }
-
-    local fallback
-    for _, candidate in ipairs(candidates) do
-        local model = candidate.model
-        if isstring(model) and model ~= "" then
-            if not IsViewModelModel(model) then
-                return model, candidate.scale
-            end
-            -- Мировой модели нет вообще — запомним на крайний случай.
-            fallback = fallback or candidate
-        end
+    if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
+        return wep.WorldModelExchange, wep.modelscale or 1
     end
 
-    if fallback then
-        return fallback.model, fallback.scale
+    if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
+        return wep.WorldModelReal, wep.modelscale2 or 1
+    end
+
+    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
+        return wep.WorldModel, wep.modelscale2 or 1
     end
 
     return nil
