@@ -51,6 +51,61 @@ end
 
 local HolsterConfig, DefaultHolsterConfig = LoadPositions()
 
+-- ============================================================
+-- Модели оружия: показывать СВОЮ модель (WorldModel), а не подменную.
+-- У части Rem-оружий WorldModelExchange указывает на ВНЕШНЮЮ модель
+-- (models/tfa_nmrih/w_bat.mdl, ravaged, re9 — «не из реморсеима»), и сам пак
+-- рисует именно её в руках, на земле и при дропе. Принудительно возвращаем
+-- модель самого оружия — везде: в руках, на земле, при дропе и на спине.
+-- (Та же правка есть в серверном файле — поля SWEP не сетуются, поэтому
+-- патч должен выполняться в обоих realm.)
+-- ============================================================
+
+-- Привязки в руках как у ZCity-аналогов с той же моделью (см. серверный файл).
+local RemModelTune = {
+    weapon_rem_melee_bat = { pos = {1.5, 0.2, -0.2}, ang = {-79, 5, -4} },
+    weapon_rem_melee_hg_sledgehammer = { pos = {0, 0, 0}, ang = {0, -90, 0} },
+    weapon_rem_melee_hg_crowbar = { pos = {0, 0, -15}, ang = {0, -90, 0} },
+    weapon_rem_melee_hatchet = { pos = {0, 5, -2}, ang = {0, -90, 0} },
+}
+
+local function PatchRemWeapon(class, tbl)
+    if not istable(tbl) then return end
+    local wm = tbl.WorldModel
+    local ex = tbl.WorldModelExchange
+    if not (isstring(wm) and wm ~= "" and isstring(ex) and ex ~= "" and ex ~= wm) then return end
+
+    tbl.WorldModelExchange = wm
+    tbl.modelscale = 1
+
+    local tune = RemModelTune[class]
+    if tune then
+        tbl.weaponPos = Vector(tune.pos[1], tune.pos[2], tune.pos[3])
+        tbl.weaponAng = Angle(tune.ang[1], tune.ang[2], tune.ang[3])
+    end
+
+    if isfunction(tbl.SetModelScale) then
+        pcall(tbl.SetModelScale, tbl, 1)
+    end
+end
+
+-- Патчим и таблицы классов (наследуются всеми будущими экземплярами),
+-- и уже созданные экземпляры (в т.ч. оружие, лежащее на земле).
+local function PatchRemModels()
+    for class in pairs(HolsterConfig) do
+        PatchRemWeapon(class, weapons.GetStored(class))
+    end
+    for _, ent in ipairs(ents.GetAll()) do
+        if IsValid(ent) and HolsterConfig[ent:GetClass()] then
+            PatchRemWeapon(ent:GetClass(), ent)
+        end
+    end
+end
+
+PatchRemModels()
+hook.Add("InitPostEntity", "Rem_HolsterModelFix", PatchRemModels)
+timer.Create("Rem_HolsterModelFixTimer", 2, 0, PatchRemModels)
+
 local function ClearHolsters(ply)
     if not istable(ply.RemHolsterModels) then
         ply.RemHolsterModels = {}

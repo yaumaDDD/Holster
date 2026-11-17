@@ -98,7 +98,8 @@ weapon_hg_axe = {
 - Белый список и позиции — в **`lua/rem_holster/positions.lua`**
   (формат такой же, как в `lua/holster/positions.lua`).
 - Модели берутся из самих оружий Remorseim по их путям (`WorldModel` — «своя»
-  модель оружия; подменные `WorldModelExchange` для выброшенных предметов на спине
-  не используются) — ничего хардкодить не нужно.
+  модель оружия). Подменные `WorldModelExchange` (внешние модели вроде
+  `models/tfa_nmrih/w_bat.mdl`, ravaged, re9) подавляются: оружие везде
+  показывает свою модель — в руках, на земле, при дропе и на спине.
 - Готовый архив: **`rem_holster.zip`** (распаковать в папку `garrysmod`).
 - Подробности: `rem_holster/README.md`.

@@ -101,6 +101,58 @@ local function IsTwoHandedFirearm(wep)
         and not IsRemBackMelee(wep)
 end
 
+-- ============================================================
+-- Модели оружия: показывать СВОЮ модель (WorldModel), а не подменную.
+-- У части Rem-оружий WorldModelExchange указывает на ВНЕШНЮЮ модель
+-- (models/tfa_nmrih/w_bat.mdl, ravaged, re9 — «не из реморсеима»), и сам пак
+-- рисует именно её в руках, на земле и при дропе. Принудительно возвращаем
+-- модель самого оружия — везде: в руках, на земле, при дропе и на спине.
+-- ============================================================
+
+-- Привязки в руках как у ZCity-аналогов с той же моделью: у них тот же
+-- носитель (v_-модель) и basebone 94, поэтому их offsets подходят к новой
+-- видимой модели (offsets самого пака были подогнаны под подменные модели).
+local RemModelTune = {
+    weapon_rem_melee_bat = { pos = {1.5, 0.2, -0.2}, ang = {-79, 5, -4} },
+    weapon_rem_melee_hg_sledgehammer = { pos = {0, 0, 0}, ang = {0, -90, 0} },
+    weapon_rem_melee_hg_crowbar = { pos = {0, 0, -15}, ang = {0, -90, 0} },
+    weapon_rem_melee_hatchet = { pos = {0, 5, -2}, ang = {0, -90, 0} },
+}
+
+local function PatchRemWeapon(class, tbl)
+    if not istable(tbl) then return end
+    local wm = tbl.WorldModel
+    local ex = tbl.WorldModelExchange
+    -- Правим только те, у кого подмена есть и она не совпадает с моделью оружия.
+    if not (isstring(wm) and wm ~= "" and isstring(ex) and ex ~= "" and ex ~= wm) then return end
+
+    tbl.WorldModelExchange = wm
+    -- modelscale у этих оружий компенсировал размер подменной модели
+    -- (например 1.45 у биты); своя модель рисуется в нормальном масштабе,
+    -- как у ZCity-аналогов.
+    tbl.modelscale = 1
+
+    local tune = RemModelTune[class]
+    if tune then
+        tbl.weaponPos = Vector(tune.pos[1], tune.pos[2], tune.pos[3])
+        tbl.weaponAng = Angle(tune.ang[1], tune.ang[2], tune.ang[3])
+    end
+
+    -- У уже созданных экземпляров масштаб выставлен при инициализации.
+    if isfunction(tbl.SetModelScale) then
+        pcall(tbl.SetModelScale, tbl, 1)
+    end
+end
+
+local function PatchRemClasses()
+    for class in pairs(ExtraRemBackMelee) do
+        PatchRemWeapon(class, weapons.GetStored(class))
+    end
+end
+
+PatchRemClasses()
+hook.Add("InitPostEntity", "Rem_HolsterModelFix", PatchRemClasses)
+
 -- A holstered weapon is one that is carried but is not the active weapon.
 local function IsHolstered(ply, wep)
     return IsValid(wep) and IsRemBackMelee(wep) and wep ~= ply:GetActiveWeapon()
@@ -357,7 +409,8 @@ local function QueueSync(ply)
     end)
 end
 
-hook.Add("WeaponEquip", "Rem_Holster_Equip", function(_, ply)
+hook.Add("WeaponEquip", "Rem_Holster_Equip", function(wep, ply)
+    PatchRemWeapon(IsValid(wep) and wep:GetClass() or "", wep)
     QueueSync(ply)
 end)
 
