@@ -367,29 +367,48 @@ hook.Add("WeaponEquip", "Rem_ReplaceBackMelee", function(wep, ply)
     end
 end)
 
--- Путь модели для спины: берём из самого оружия по его путям.
--- WorldModelExchange — «своя» модель реморсеима: именно её пак показывает
--- в руках, на земле и при броске (у биты — models/tfa_nmrih/w_bat.mdl).
--- Стандартные z_city-модели (WorldModel) на спине НЕ используются, если у
--- оружия есть своя. Масштаб — как в игре (modelscale / modelscale2).
+-- Вьюмодель? Это модели v_*.mdl / c_*.mdl — то, что видно от первого лица.
+-- Для спины они не годятся: сделаны под камеру, а их bbox раздут анимациями,
+-- поэтому в мире такая модель рисуется «плоско» и уезжает от тела.
+local function IsViewModelModel(model)
+    if not isstring(model) or model == "" then return false end
+    local name = model:match("([^/\\]+)$") or model
+    return name:sub(1, 2) == "v_" or name:sub(1, 2) == "c_"
+end
+
+-- Путь модели для спины: берём из самого оружия по его путям, но всегда
+-- МИРОВУЮ модель (w_*.mdl) — ту же, что лежит на земле, когда оружие выброшено.
+-- Порядок: WorldModelExchange (своя модель реморсеима) → WorldModel (мировая
+-- модель оружия) → WorldModelReal (в руках у третьего лица).
+-- Масштаб: modelscale — это размер оружия в МИРЕ (пак ставит его и на
+-- CliensideModel-модель, и на саму weapon-entity), поэтому на спине берём
+-- именно его. modelscale2 — только для вида «в руках у третьего лица»,
+-- поэтому это крайний запасной вариант.
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
-    -- Правило отображения — как пак рисует оружие В РУКАХ (DrawWorldModel2):
-    -- 1) WorldModelExchange — своя модель реморсеима @ modelscale;
-    -- 2) иначе WorldModelReal — модель в руках (её рисует карриер, когда
-    --    оружие в руках и нет Exchange) @ modelscale2;
-    -- 3) иначе WorldModel — запасной вариант @ modelscale2.
-    if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
-        return wep.WorldModelExchange, wep.modelscale or 1
+    local scale = wep.modelscale or 1
+    local scale2 = wep.modelscale2 or scale
+    local candidates = {
+        { model = wep.WorldModelExchange, scale = scale },
+        { model = wep.WorldModel,         scale = scale },
+        { model = wep.WorldModelReal,     scale = scale2 },
+    }
+
+    local fallback
+    for _, candidate in ipairs(candidates) do
+        local model = candidate.model
+        if isstring(model) and model ~= "" then
+            if not IsViewModelModel(model) then
+                return model, candidate.scale
+            end
+            -- Мировой модели нет вообще — запомним на крайний случай.
+            fallback = fallback or candidate
+        end
     end
 
-    if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
-        return wep.WorldModelReal, wep.modelscale2 or 1
-    end
-
-    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
-        return wep.WorldModel, wep.modelscale2 or 1
+    if fallback then
+        return fallback.model, fallback.scale
     end
 
     return nil
