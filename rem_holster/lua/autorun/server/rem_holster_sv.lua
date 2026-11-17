@@ -101,58 +101,6 @@ local function IsTwoHandedFirearm(wep)
         and not IsRemBackMelee(wep)
 end
 
--- ============================================================
--- Модели оружия: показывать СВОЮ модель (WorldModel), а не подменную.
--- У части Rem-оружий WorldModelExchange указывает на ВНЕШНЮЮ модель
--- (models/tfa_nmrih/w_bat.mdl, ravaged, re9 — «не из реморсеима»), и сам пак
--- рисует именно её в руках, на земле и при дропе. Принудительно возвращаем
--- модель самого оружия — везде: в руках, на земле, при дропе и на спине.
--- ============================================================
-
--- Привязки в руках как у ZCity-аналогов с той же моделью: у них тот же
--- носитель (v_-модель) и basebone 94, поэтому их offsets подходят к новой
--- видимой модели (offsets самого пака были подогнаны под подменные модели).
-local RemModelTune = {
-    weapon_rem_melee_bat = { pos = {1.5, 0.2, -0.2}, ang = {-79, 5, -4} },
-    weapon_rem_melee_hg_sledgehammer = { pos = {0, 0, 0}, ang = {0, -90, 0} },
-    weapon_rem_melee_hg_crowbar = { pos = {0, 0, -15}, ang = {0, -90, 0} },
-    weapon_rem_melee_hatchet = { pos = {0, 5, -2}, ang = {0, -90, 0} },
-}
-
-local function PatchRemWeapon(class, tbl)
-    if not istable(tbl) then return end
-    local wm = tbl.WorldModel
-    local ex = tbl.WorldModelExchange
-    -- Правим только те, у кого подмена есть и она не совпадает с моделью оружия.
-    if not (isstring(wm) and wm ~= "" and isstring(ex) and ex ~= "" and ex ~= wm) then return end
-
-    tbl.WorldModelExchange = wm
-    -- modelscale у этих оружий компенсировал размер подменной модели
-    -- (например 1.45 у биты); своя модель рисуется в нормальном масштабе,
-    -- как у ZCity-аналогов.
-    tbl.modelscale = 1
-
-    local tune = RemModelTune[class]
-    if tune then
-        tbl.weaponPos = Vector(tune.pos[1], tune.pos[2], tune.pos[3])
-        tbl.weaponAng = Angle(tune.ang[1], tune.ang[2], tune.ang[3])
-    end
-
-    -- У уже созданных экземпляров масштаб выставлен при инициализации.
-    if isfunction(tbl.SetModelScale) then
-        pcall(tbl.SetModelScale, tbl, 1)
-    end
-end
-
-local function PatchRemClasses()
-    for class in pairs(ExtraRemBackMelee) do
-        PatchRemWeapon(class, weapons.GetStored(class))
-    end
-end
-
-PatchRemClasses()
-hook.Add("InitPostEntity", "Rem_HolsterModelFix", PatchRemClasses)
-
 -- A holstered weapon is one that is carried but is not the active weapon.
 local function IsHolstered(ply, wep)
     return IsValid(wep) and IsRemBackMelee(wep) and wep ~= ply:GetActiveWeapon()
@@ -347,20 +295,19 @@ hook.Add("WeaponEquip", "Rem_ReplaceBackMelee", function(wep, ply)
 end)
 
 -- Путь модели для спины: берём из самого оружия по его путям.
--- WorldModel — «своя» модель Remorseim (у биты деревянной —
--- models/weapons/tfa_nmrih/w_me_bat_wood.mdl). WorldModelExchange — подменная
--- модель для выброшенного пропа (у биты это внешняя models/tfa_nmrih/w_bat.mdl,
--- «не из реморсеима»), поэтому на спине не ставится — только как запасной
--- вариант, если вдруг WorldModel пуст.
+-- WorldModelExchange — «своя» модель реморсеима: именно её пак показывает
+-- в руках, на земле и при броске (у биты — models/tfa_nmrih/w_bat.mdl).
+-- Стандартные z_city-модели (WorldModel) на спине НЕ используются, если у
+-- оружия есть своя. Масштаб — как в игре (modelscale / modelscale2).
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
-    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
-        return wep.WorldModel
+    if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
+        return wep.WorldModelExchange, wep.modelscale or 1
     end
 
-    if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
-        return wep.WorldModelExchange
+    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
+        return wep.WorldModel, wep.modelscale2 or 1
     end
 
     return nil
@@ -376,11 +323,12 @@ local function SyncWeapons(ply)
 
     for _, wep in ipairs(ply:GetWeapons()) do
         if IsValid(wep) and IsRemBackMelee(wep) and wep ~= active then
-            local model = GetBackModel(wep)
+            local model, scale = GetBackModel(wep)
             if isstring(model) and model ~= "" then
                 data[1] = {
                     class = wep:GetClass(),
-                    model = model
+                    model = model,
+                    scale = scale or 1
                 }
                 break
             end
@@ -409,8 +357,7 @@ local function QueueSync(ply)
     end)
 end
 
-hook.Add("WeaponEquip", "Rem_Holster_Equip", function(wep, ply)
-    PatchRemWeapon(IsValid(wep) and wep:GetClass() or "", wep)
+hook.Add("WeaponEquip", "Rem_Holster_Equip", function(_, ply)
     QueueSync(ply)
 end)
 
