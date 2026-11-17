@@ -1,4 +1,7 @@
--- Z-City Back Holster (server). Put this addon into garrysmod/addons/.
+-- Z-City + Remorseim Back Holster (server).
+-- Put this addon into garrysmod/addons/.
+-- Работает и с милишками Z-City, и с милишками Remorseim Gun Pack — один
+-- белый список, один файл позиций (lua/holster/positions.lua), один аддон.
 
 -- Отдать клиенту клиентскую часть и файл позиций (нужно на выделенном сервере
 -- без мастерской; без этого клиенты не получат lua/autorun/client и positions.lua).
@@ -20,6 +23,44 @@ util.AddNetworkString("ZCity_Holster_Sync")
 
 hg = hg or {}
 
+-- ================= Построение моделей ВСЕХ оружий =================
+-- Профилактика бага «моделька не рисуется»: модели паков (Z-City и Remorseim)
+-- используются через ClientsideModel, а не через регистрацию SWEP, поэтому
+-- движок может их не знать. При старте собираем ВСЕ .mdl-пути из ВСЕХ
+-- зарегистрированных оружий (включая будущие) и прекешируем их.
+local function CollectModelStrings(tbl, depth, seen, out)
+    if type(tbl) ~= "table" or seen[tbl] or (depth or 0) > 6 then return end
+    seen[tbl] = true
+    for _, v in pairs(tbl) do
+        if type(v) == "string" and string.sub(v, -4) == ".mdl" then
+            out[v] = true
+        elseif type(v) == "table" then
+            CollectModelStrings(v, (depth or 0) + 1, seen, out)
+        end
+    end
+end
+
+local function PrecacheAllWeaponModels()
+    local out, seen = {}, {}
+    for _, wepTbl in pairs(weapons.GetList()) do
+        CollectModelStrings(wepTbl, 0, seen, out)
+    end
+
+    local n = 0
+    for mdl in pairs(out) do
+        pcall(util.PrecacheModel, mdl)
+        n = n + 1
+    end
+
+    print("[Holster] Построение моделей: прекешировано моделей оружия — " .. n)
+end
+
+-- Только через таймер и под pcall: ошибка одного обработчика Initialize/
+-- InitPostEntity в GMod обрывает остальные хуки того же события.
+timer.Simple(2, function()
+    pcall(PrecacheAllWeaponModels)
+end)
+
 -- Зеркало списка из lua/holster/positions.lua — используется, если файл не загрузился.
 local BuiltinBackMelee = {
     weapon_hg_axe = true,
@@ -31,7 +72,20 @@ local BuiltinBackMelee = {
     weapon_hatchet = true,
     weapon_hg_crowbar = true,
     weapon_bat = true,
-    weapon_hg_machete = true
+    weapon_hg_machete = true,
+
+    -- Remorseim Gun Pack
+    weapon_rem_melee_hg_spear = true,
+    weapon_rem_melee_hg_spear_pro = true,
+    weapon_rem_melee_hg_sledgehammer = true,
+    weapon_rem_melee_hg_shovel = true,
+    weapon_rem_melee_chainsaw = true,
+    weapon_rem_melee_hg_axe = true,
+    weapon_rem_melee_bat = true,
+    weapon_rem_melee_metalbat = true,
+    weapon_rem_melee_hg_machete = true,
+    weapon_rem_melee_hatchet = true,
+    weapon_rem_melee_hg_crowbar = true
 }
 
 -- Белый список back-оружия: это ключи секции weapons из lua/holster/positions.lua.
@@ -56,9 +110,9 @@ local function LoadBackMelee()
     end
 
     if not ok then
-        print("[ZCity Holster] Не удалось загрузить lua/holster/positions.lua: " .. tostring(result) .. " — используется встроенный список.")
+        print("[Holster] Не удалось загрузить lua/holster/positions.lua: " .. tostring(result) .. " — используется встроенный список.")
     else
-        print("[ZCity Holster] lua/holster/positions.lua не содержит секцию weapons — используется встроенный список.")
+        print("[Holster] lua/holster/positions.lua не содержит секцию weapons — используется встроенный список.")
     end
     return BuiltinBackMelee
 end
@@ -288,6 +342,31 @@ hook.Add("WeaponEquip", "ZCity_ReplaceBackMelee", function(wep, ply)
     end
 end)
 
+-- Модель для спины — ровно та, что оружие показывает в руках и на земле при
+-- выбрасывании. Именно так модель выбирают и Z-City (weapon_melee:DrawWorldModel2),
+-- и Remorseim Gun Pack (weapon_rem_melee_base:DrawWorldModel2):
+--     WorldModelExchange (своя модель пака) @ modelscale,
+--     иначе WorldModelReal (модель в руках)   @ modelscale2,
+--     иначе WorldModel                        @ modelscale2.
+-- Поэтому одна и та же функция годится для милишек обоих паков.
+local function GetBackModel(wep)
+    if not IsValid(wep) then return nil end
+
+    if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
+        return wep.WorldModelExchange, tonumber(wep.modelscale) or 1
+    end
+
+    if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
+        return wep.WorldModelReal, tonumber(wep.modelscale2) or 1
+    end
+
+    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
+        return wep.WorldModel, tonumber(wep.modelscale2) or 1
+    end
+
+    return nil
+end
+
 -- Send at most one holstered melee weapon to the client for the back holster.
 -- The active weapon is held, not shown on the back.
 local function SyncWeapons(ply)
@@ -298,15 +377,13 @@ local function SyncWeapons(ply)
 
     for _, wep in ipairs(ply:GetWeapons()) do
         if IsValid(wep) and IsBackMelee(wep) and wep ~= active then
-            local model = wep:GetWeaponWorldModel()
-            if not isstring(model) or model == "" then
-                model = wep.WorldModel
-            end
+            local model, scale = GetBackModel(wep)
 
             if isstring(model) and model ~= "" then
                 data[1] = {
                     class = wep:GetClass(),
-                    model = model
+                    model = model,
+                    scale = scale or 1
                 }
                 break
             end
