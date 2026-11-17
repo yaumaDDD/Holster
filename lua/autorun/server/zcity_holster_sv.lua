@@ -72,10 +72,25 @@ local function IsBackMelee(wep)
 end
 hg.IsBackMelee = IsBackMelee
 
+-- Двуручность милишки (TwoHanded) — это хват (огнетушитель, кувалда...), а
+-- не признак ствола: милишка вне белого списка должна выбрасываться как
+-- обычное оружие. Поэтому защита «двуручных стволов» от неявного выброса
+-- действует только на НЕ-мелишное оружие.
+local function IsMeleeWeapon(wep)
+    if not IsValid(wep) then return false end
+    local class = wep:GetClass()
+    if not isstring(class) then return false end
+    if string.sub(class, 1, 16) == "weapon_rem_melee" then return true end
+    if weapons.IsBasedOn then
+        return weapons.IsBasedOn(class, "weapon_melee") or weapons.IsBasedOn(class, "weapon_rem_melee_base")
+    end
+    return false
+end
+
 -- Two-handed firearms (TwoHanded or bigNoDrop) must not be dropped by the holster.
 local function IsTwoHandedFirearm(wep)
     return IsValid(wep) and (wep.TwoHanded == true or wep.bigNoDrop == true)
-        and not IsBackMelee(wep)
+        and not IsBackMelee(wep) and not IsMeleeWeapon(wep)
 end
 
 -- A holstered weapon is one that is carried but is not the active weapon.
@@ -89,9 +104,12 @@ end
 -- drop-command window, so an implicit drop (PlayerThink, sling drop, etc.)
 -- can't take the main/back weapon along with the dropped one.
 local function IsExplicitDrop(ply, wep)
-    if ply.ZCityHolsterForceDrop then return true end
+    -- Проверяем оба флага (Rem и ZCity) и обе цели, чтобы явный дроп работал
+    -- независимо от того, чей wrapper команд drop/dropweapon активен.
+    if ply.RemHolsterForceDrop or ply.ZCityHolsterForceDrop then return true end
     if not ply.IsSpammingDropCommand then return false end
-    return IsValid(ply.ZCityHolsterDropTarget) and wep == ply.ZCityHolsterDropTarget
+    if IsValid(ply.ZCityHolsterDropTarget) and wep == ply.ZCityHolsterDropTarget then return true end
+    return IsValid(ply.RemHolsterDropTarget) and wep == ply.RemHolsterDropTarget
 end
 
 -- Block ordinary drops, but keep ZCity's intentional drop-command bypass

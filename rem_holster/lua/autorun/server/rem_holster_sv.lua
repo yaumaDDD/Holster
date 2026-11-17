@@ -139,11 +139,25 @@ else
     hg.IsBackMelee = IsRemBackMelee
 end
 
+-- Двуручность милишки (TwoHanded) — это хват (огнетушитель, кувалда...), а
+-- не признак ствола: милишка вне белого списка должна выбрасываться как
+-- обычное оружие. Поэтому защита «двуручных стволов» от неявного выброса
+-- действует только на НЕ-мелишное оружие.
+local function IsMeleeWeapon(wep)
+    if not IsValid(wep) then return false end
+    local class = wep:GetClass()
+    if not isstring(class) then return false end
+    if string.sub(class, 1, 16) == "weapon_rem_melee" then return true end
+    if weapons.IsBasedOn then
+        return weapons.IsBasedOn(class, "weapon_melee") or weapons.IsBasedOn(class, "weapon_rem_melee_base")
+    end
+    return false
+end
+
 -- Two-handed firearms (TwoHanded or bigNoDrop) must not be dropped by the holster.
--- Rem-оружия тоже имеют TwoHanded=true, но они back-оружие, поэтому исключаются.
 local function IsTwoHandedFirearm(wep)
     return IsValid(wep) and (wep.TwoHanded == true or wep.bigNoDrop == true)
-        and not IsRemBackMelee(wep)
+        and not IsRemBackMelee(wep) and not IsMeleeWeapon(wep)
 end
 
 -- A holstered weapon is one that is carried but is not the active weapon.
