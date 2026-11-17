@@ -68,9 +68,12 @@ local function RemHolsterPrecacheAllModels()
     end
 end
 
-hook.Add("Initialize", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
-hook.Add("InitPostEntity", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
-timer.Simple(2, RemHolsterPrecacheAllModels)
+-- Запускаем ТОЛЬКО через таймер и под pcall — сознательно НЕ вешаемся на
+-- Initialize/InitPostEntity: ошибка одного обработчика в GMod обрывает
+-- остальные хуки того же события, а это ломает чужие системы.
+timer.Simple(2, function()
+    pcall(RemHolsterPrecacheAllModels)
+end)
 
 -- Зеркало списка из lua/rem_holster/positions.lua — используется, если файл не загрузился.
 local BuiltinRemBackMelee = {
@@ -257,7 +260,9 @@ local function WrapDropCommands()
     end
 end
 
-hook.Add("InitPostEntity", "Rem_HolsterDropCommands", WrapDropCommands)
+hook.Add("InitPostEntity", "Rem_HolsterDropCommands", function()
+    pcall(WrapDropCommands)
+end)
 
 -- Заменяет стоковый хук ZCity "homigrad-dropholstered" (sv_util.lua), который
 -- насильно выбрасывает любое подобранное NoHolster-оружие не в руках, на версию,
@@ -289,7 +294,9 @@ local function ReplaceDropHolsteredHook()
 end
 
 ReplaceDropHolsteredHook()
-hook.Add("InitPostEntity", "Rem_HolsterDropHolsteredFix", ReplaceDropHolsteredHook)
+hook.Add("InitPostEntity", "Rem_HolsterDropHolsteredFix", function()
+    pcall(ReplaceDropHolsteredHook)
+end)
 
 hook.Add("PlayerCanDropWeapon", "Rem_KeepTwoHandedFirearm", function(ply, wep)
     if IsTwoHandedFirearm(wep) and not IsExplicitDrop(ply, wep) then

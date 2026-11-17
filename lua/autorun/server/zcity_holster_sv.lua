@@ -186,7 +186,9 @@ local function WrapDropCommands()
     end
 end
 
-hook.Add("InitPostEntity", "ZCity_HolsterDropCommands", WrapDropCommands)
+hook.Add("InitPostEntity", "ZCity_HolsterDropCommands", function()
+    pcall(WrapDropCommands)
+end)
 
 -- Заменяет стоковый хук ZCity "homigrad-dropholstered" (sv_util.lua), который
 -- насильно выбрасывает любое подобранное NoHolster-оружие не в руках, на версию,
@@ -220,7 +222,9 @@ local function ReplaceDropHolsteredHook()
 end
 
 ReplaceDropHolsteredHook()
-hook.Add("InitPostEntity", "ZCity_HolsterDropHolsteredFix", ReplaceDropHolsteredHook)
+hook.Add("InitPostEntity", "ZCity_HolsterDropHolsteredFix", function()
+    pcall(ReplaceDropHolsteredHook)
+end)
 
 hook.Add("PlayerCanDropWeapon", "ZCity_KeepTwoHandedFirearm", function(ply, wep)
     if IsTwoHandedFirearm(wep) and not IsExplicitDrop(ply, wep) then

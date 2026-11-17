@@ -89,9 +89,14 @@ local function RemHolsterPrecacheAllModels()
     end
 end
 
-hook.Add("Initialize", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
-hook.Add("InitPostEntity", "Rem_Holster_PrecacheModels", RemHolsterPrecacheAllModels)
-timer.Simple(2, RemHolsterPrecacheAllModels)
+-- Запускаем ТОЛЬКО через таймер и под pcall — сознательно НЕ вешаемся на
+-- Initialize/InitPostEntity: в GMod ошибка одного обработчика обрывает
+-- остальные хуки того же события (так из-за нас мог не создаться чат zchat:
+-- его CreateChat висит на InitPostEntity, hg.chat оставался nil и при ESC
+-- вылетала ошибка sh_chat.lua:45). Теперь наша ошибка не может никому мешать.
+timer.Simple(2, function()
+    pcall(RemHolsterPrecacheAllModels)
+end)
 
 local function ClearHolsters(ply)
     if not istable(ply.RemHolsterModels) then
