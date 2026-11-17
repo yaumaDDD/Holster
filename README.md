@@ -82,20 +82,23 @@ weapon_hg_axe = {
 аддон не упадёт — он запишет предупреждение в консоль и будет использовать
 встроенный список и встроенные позиции.
 
-## Remorseim Back Holster (отдельный аддон)
+## Remorseim Back Holster (временно — файлы в директории Гмода)
 
-Папка **`rem_holster/`** — самостоятельный аддон для милишек **Remorseim Gun Pack**
+Папка **`rem_holster/`** — отдельная система для милишек **Remorseim Gun Pack**
 (списки из 11 классов: `weapon_rem_melee_hg_spear`, `weapon_rem_melee_hg_sledgehammer`,
 `weapon_rem_melee_hg_shovel`, `weapon_rem_melee_hg_spear_pro`, `weapon_rem_melee_hg_machete`,
 `weapon_rem_melee_hatchet`, `weapon_rem_melee_hg_axe`, `weapon_rem_melee_hg_crowbar`,
 `weapon_rem_melee_chainsaw`, `weapon_rem_melee_bat`, `weapon_rem_melee_metalbat`).
 
-- Устанавливается в `garrysmod/addons/rem_holster` **рядом** с `zcity_holster`
-  и не конфликтует с ним: у каждого свой белый список, свои позиции и свои хуки
-  (за спиной максимум 1 ZCity + 1 Remorseim предмет).
-- Белый список и позиции — в **`rem_holster/lua/rem_holster/positions.lua`**
+- **Временная установка:** файлы кладутся прямо в директорию Гмода
+  (`garrysmod/lua/autorun/server`, `garrysmod/lua/autorun/client`,
+  `garrysmod/lua/rem_holster`) — без папки-аддона; позже всё будет собрано в аддон.
+- Работает **рядом** с `zcity_holster` и не конфликтует с ним: у каждого свой
+  белый список, свои позиции и свои хуки (за спиной максимум 1 ZCity + 1 Remorseim предмет).
+- Белый список и позиции — в **`lua/rem_holster/positions.lua`**
   (формат такой же, как в `lua/holster/positions.lua`).
-- Модели берутся из самих оружий Remorseim по их путям (`WorldModelExchange`,
-  затем `WorldModel`) — ничего хардкодить не нужно.
-- Готовый архив: **`rem_holster.zip`** (распаковать в `garrysmod/addons/`).
+- Модели берутся из самих оружий Remorseim по их путям (`WorldModel` — «своя»
+  модель оружия; подменные `WorldModelExchange` для выброшенных предметов на спине
+  не используются) — ничего хардкодить не нужно.
+- Готовый архив: **`rem_holster.zip`** (распаковать в папку `garrysmod`).
 - Подробности: `rem_holster/README.md`.

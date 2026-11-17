@@ -1,8 +1,11 @@
--- Remorseim Back Holster (server). Put this addon into garrysmod/addons/.
--- Отдельный аддон для милишек Remorseim Gun Pack. Работает рядом с zcity_holster:
+-- Remorseim Back Holster (server).
+-- Временная установка: файлы лежат прямо в директории Гмода —
+-- garrysmod/lua/autorun/server, garrysmod/lua/autorun/client и
+-- garrysmod/lua/rem_holster (позиции). Пока не собраны в отдельный аддон.
+-- Отдельная система для милишек Remorseim Gun Pack. Работает рядом с zcity_holster:
 -- у каждого свой белый список, свои позиции, свой net-канал и свои хуки,
 -- поэтому они не конфликтуют. Модели берутся из самих оружий по их путям
--- (WorldModelExchange / WorldModel), а не хардкодятся.
+-- (WorldModel — «своя» модель Remorseim), а не хардкодятся.
 
 -- Отдать клиенту клиентскую часть и файл позиций (нужно на выделенном сервере
 -- без мастерской; без этого клиенты не получат lua/autorun/client и positions.lua).
@@ -292,25 +295,20 @@ hook.Add("WeaponEquip", "Rem_ReplaceBackMelee", function(wep, ply)
 end)
 
 -- Путь модели для спины: берём из самого оружия по его путям.
--- Предпочтение WorldModelExchange (мировая/выброшенная модель, у Rem-оружий
--- это именно ремовские пути), затем WorldModel. Если у оружия есть
--- GetWeaponWorldModel — пробуем и его (через pcall, на случай отсутствия).
+-- WorldModel — «своя» модель Remorseim (у биты деревянной —
+-- models/weapons/tfa_nmrih/w_me_bat_wood.mdl). WorldModelExchange — подменная
+-- модель для выброшенного пропа (у биты это внешняя models/tfa_nmrih/w_bat.mdl,
+-- «не из реморсеима»), поэтому на спине не ставится — только как запасной
+-- вариант, если вдруг WorldModel пуст.
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
-    if wep.GetWeaponWorldModel then
-        local ok, model = pcall(function() return wep:GetWeaponWorldModel() end)
-        if ok and isstring(model) and model ~= "" then
-            return model
-        end
+    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
+        return wep.WorldModel
     end
 
     if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
         return wep.WorldModelExchange
-    end
-
-    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
-        return wep.WorldModel
     end
 
     return nil

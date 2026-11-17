@@ -1,4 +1,7 @@
--- Remorseim Back Holster (client). Put this addon into garrysmod/addons/.
+-- Remorseim Back Holster (client).
+-- Временная установка: файлы лежат прямо в директории Гмода —
+-- garrysmod/lua/autorun/server, garrysmod/lua/autorun/client и
+-- garrysmod/lua/rem_holster (позиции). Пока не собраны в отдельный аддон.
 --
 -- Оружие, которое носится за спиной, и его позиции редактируются в
 -- lua/rem_holster/positions.lua (это белый список для сервера и клиента сразу).
