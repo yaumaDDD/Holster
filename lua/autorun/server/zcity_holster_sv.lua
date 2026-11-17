@@ -342,26 +342,49 @@ hook.Add("WeaponEquip", "ZCity_ReplaceBackMelee", function(wep, ply)
     end
 end)
 
--- Модель для спины — ровно та, что оружие показывает в руках и на земле при
--- выбрасывании. Именно так модель выбирают и Z-City (weapon_melee:DrawWorldModel2),
--- и Remorseim Gun Pack (weapon_rem_melee_base:DrawWorldModel2):
---     WorldModelExchange (своя модель пака) @ modelscale,
---     иначе WorldModelReal (модель в руках)   @ modelscale2,
---     иначе WorldModel                        @ modelscale2.
--- Поэтому одна и та же функция годится для милишек обоих паков.
+-- Модель для спины.
+--
+-- ВАЖНО: у Z-City и Remorseim разные модели, и путать их нельзя — позиции в
+-- lua/holster/positions.lua подобраны под МИРОВЫЕ модели Z-City.
+--
+--  * Z-City (weapon_hg_*, weapon_bat, weapon_hatchet...): ровно как в
+--    оригинальном холстере — WorldModel (та самая w_*.mdl, под которую и
+--    размечены pos/ang). Вьюмодели (WorldModelReal — v_*.mdl) сюда НЕ идут:
+--    у них другое начало координат и габарит, из-за этого мачете/лом
+--    выглядели «странно», хотя позиции не менялись.
+--  * Remorseim (weapon_rem_melee_*): модель из рук, как её рисует пак —
+--    WorldModelExchange, иначе WorldModelReal, иначе WorldModel. Позиции
+--    для них подобраны отдельно и совпадают по смыслу с Z-City.
+local function IsRemorseimWeapon(wep)
+    local class = wep:GetClass()
+    if not isstring(class) then return false end
+    return string.sub(class, 1, 16) == "weapon_rem_melee"
+end
+
 local function GetBackModel(wep)
     if not IsValid(wep) then return nil end
 
-    if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
-        return wep.WorldModelExchange, tonumber(wep.modelscale) or 1
+    if IsRemorseimWeapon(wep) then
+        -- Remorseim: как в руках у пака.
+        if isstring(wep.WorldModelExchange) and wep.WorldModelExchange ~= "" then
+            return wep.WorldModelExchange, tonumber(wep.modelscale) or 1
+        end
+        if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
+            return wep.WorldModelReal, tonumber(wep.modelscale2) or 1
+        end
+        if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
+            return wep.WorldModel, tonumber(wep.modelscale2) or 1
+        end
+        return nil
     end
 
-    if isstring(wep.WorldModelReal) and wep.WorldModelReal ~= "" then
-        return wep.WorldModelReal, tonumber(wep.modelscale2) or 1
+    -- Z-City: как в оригинальном холстере — мировая модель, без вьюмоделей.
+    local model = wep.GetWeaponWorldModel and wep:GetWeaponWorldModel() or nil
+    if not isstring(model) or model == "" then
+        model = wep.WorldModel
     end
-
-    if isstring(wep.WorldModel) and wep.WorldModel ~= "" then
-        return wep.WorldModel, tonumber(wep.modelscale2) or 1
+    if isstring(model) and model ~= "" then
+        return model, 1
     end
 
     return nil
@@ -385,8 +408,9 @@ local function SyncWeapons(ply)
                     model = model,
                     scale = scale or 1,
                     -- Кость хвата: пак цепляет модель именно за неё
-                    -- (basebone; у Remorseim-биты это 94).
-                    bone_index = tonumber(wep.basebone)
+                    -- (basebone; у Remorseim-биты это 94). Для Z-City-оружия
+                    -- привязка остаётся по origin модели, как в оригинале.
+                    bone_index = IsRemorseimWeapon(wep) and tonumber(wep.basebone) or nil
                 }
                 break
             end
